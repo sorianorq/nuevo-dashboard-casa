@@ -138,3 +138,14 @@ export function formatDayHeading(isoDate: string): string {
 function isZero(value: number, epsilon = 0.005) {
   return Math.abs(value) < epsilon;
 }
+
+const compact = new Intl.NumberFormat("es-ES", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/** Ejes de gráficos: «1,2 mil €», «850 €». */
+export function formatAmountCompact(value: number): string {
+  const text = `${compact.format(Math.abs(value))} €`;
+  return value < 0 && Math.round(value) !== 0 ? `${MINUS}${text}` : text;
+}

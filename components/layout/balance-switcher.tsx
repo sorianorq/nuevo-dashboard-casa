@@ -25,6 +25,7 @@ export function BalanceSwitcher({
   tab,
   showAdminSelector = true,
   showTabs = true,
+  aside,
   className,
 }: {
   role: Role;
@@ -33,6 +34,8 @@ export function BalanceSwitcher({
   showAdminSelector?: boolean;
   /** false en secciones solo personales (Pagos): sin pestaña Casa. */
   showTabs?: boolean;
+  /** Controles a la derecha de las pestañas (p. ej. selector de mes). */
+  aside?: React.ReactNode;
   className?: string;
 }) {
   const pathname = usePathname();
@@ -47,24 +50,29 @@ export function BalanceSwitcher({
   };
 
   const adminSelector = role === "admin" && showAdminSelector;
-  if (!showTabs && !adminSelector) return null;
+  if (!showTabs && !adminSelector && !aside) return null;
 
   return (
     <div className={cn("mb-5 space-y-3 lg:mb-6", className)}>
       {adminSelector && <AdminPersonSelector person={person} />}
-      {showTabs && (
-      <SegmentedLinks
-        label="Balance"
-        className="mx-auto max-w-md lg:mx-0"
-        items={[
-          { label: OWNER_LABEL.casa, href: hrefFor("casa"), active: tab === "casa" },
-          {
-            label: OWNER_LABEL[person],
-            href: hrefFor("personal"),
-            active: tab === "personal",
-          },
-        ]}
-      />
+      {(showTabs || aside) && (
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {showTabs && (
+            <SegmentedLinks
+              label="Balance"
+              className="mx-auto w-full max-w-md lg:mx-0"
+              items={[
+                { label: OWNER_LABEL.casa, href: hrefFor("casa"), active: tab === "casa" },
+                {
+                  label: OWNER_LABEL[person],
+                  href: hrefFor("personal"),
+                  active: tab === "personal",
+                },
+              ]}
+            />
+          )}
+          {aside}
+        </div>
       )}
     </div>
   );

@@ -17,3 +17,5 @@ export {
   type Session,
   type DataContext,
 } from "./session";
+
+export { getSummary, type Summary, type ConceptSpendRow } from "./summary";

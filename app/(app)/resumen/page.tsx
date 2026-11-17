@@ -1,18 +1,50 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { BalanceComingSoon } from "@/components/layout/balance-coming-soon";
+import { BalanceSwitcher } from "@/components/layout/balance-switcher";
 import { PageHeader } from "@/components/layout/page-header";
-import { PageSkeleton } from "@/components/layout/page-skeleton";
+import { MonthNav } from "@/components/resumen/month-nav";
+import { ResumenSkeleton } from "@/components/resumen/resumen-skeleton";
+import { ResumenView } from "@/components/resumen/resumen-view";
+import { getDataContext, getSummary } from "@/lib/data";
+import { compareYm, parseYm, todayIso, ymOf } from "@/lib/months";
 
 export const metadata: Metadata = { title: "Resumen" };
 
-export default function Page(props: PageProps<"/resumen">) {
+export default function ResumenPage(props: PageProps<"/resumen">) {
   return (
     <>
       <PageHeader eyebrow="Resumen" title="Resumen" />
-      <Suspense fallback={<PageSkeleton />}>
-        <BalanceComingSoon searchParams={props.searchParams} />
+      <Suspense fallback={<ResumenSkeleton />}>
+        <ResumenContent searchParams={props.searchParams} />
       </Suspense>
+    </>
+  );
+}
+
+async function ResumenContent({ searchParams }: { searchParams: PageProps<"/resumen">["searchParams"] }) {
+  const sp = await searchParams;
+  const ctx = await getDataContext(sp);
+
+  const today = todayIso();
+  const currentYm = ymOf(today);
+  const requested = parseYm(typeof sp.mes === "string" ? sp.mes : undefined);
+  // No se permiten meses futuros.
+  const ym = requested && compareYm(requested, currentYm) <= 0 ? requested : currentYm;
+
+  const summary = await getSummary(ctx, ym, today);
+
+  const params: Record<string, string> = {};
+  if (ctx.tab === "personal") params.balance = "personal";
+
+  return (
+    <>
+      <BalanceSwitcher
+        role={ctx.role}
+        person={ctx.person}
+        tab={ctx.tab}
+        aside={<MonthNav ym={ym} maxYm={currentYm} pathname="/resumen" params={params} />}
+      />
+      <ResumenView summary={summary} owner={ctx.owner} />
     </>
   );
 }
