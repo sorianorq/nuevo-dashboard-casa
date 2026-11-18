@@ -150,9 +150,13 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
     start(async () => {
       const res = await previewImport(tab, accountId, parsed.valid);
       if (!res.ok) return void toast.error(res.error);
-      setPreview(res.rows);
-      setChoices(Object.fromEntries(res.rows.map((r) => [r.line, r.suggestion?.conceptId ?? null])));
-      setStep(2);
+      // Tras un await, las actualizaciones deben volver a marcarse como transición;
+      // si no, el paso 2 se pinta con `pending` aún activo («Importando…»).
+      start(() => {
+        setPreview(res.rows);
+        setChoices(Object.fromEntries(res.rows.map((r) => [r.line, r.suggestion?.conceptId ?? null])));
+        setStep(2);
+      });
     });
 
   // --- Paso 2 ---------------------------------------------------------------
@@ -179,8 +183,10 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
         })),
       );
       if (!res.ok) return void toast.error(res.error);
-      setResult({ inserted: res.inserted, duplicates: res.duplicates + dups.length, withoutConcept: res.withoutConcept });
-      setStep(3);
+      start(() => {
+        setResult({ inserted: res.inserted, duplicates: res.duplicates + dups.length, withoutConcept: res.withoutConcept });
+        setStep(3);
+      });
     });
 
   const restart = () => {

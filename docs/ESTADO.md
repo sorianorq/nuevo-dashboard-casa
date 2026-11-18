@@ -35,8 +35,8 @@ Cargar en Casa y personal, a 390 y 1440 px: sin errores ni desbordamiento. Todos
 movimientos de Casa visibles los creó el propio `ricardo`, así que los totales de Casa no
 cambian respecto a la verificación anterior.
 
-**Sin verificar todavía:** guardar de verdad (concepto, flujo, importación, nueva cuenta o
-concepto) y el rol admin. Las importaciones no se han probado contra la base de datos real.
+**Sin verificar todavía:** guardar de verdad concepto, flujo, nueva cuenta o nuevo concepto,
+y el rol admin. La importación sí está probada contra la base de datos real (apartado 3).
 
 ## 3. Pendiente (en este orden)
 
@@ -45,7 +45,7 @@ concepto) y el rol admin. Las importaciones no se han probado contra la base de 
 3. ~~Comparar con `supabase/sql/comprobaciones/resumen_marzo_2026_casa.sql`~~ (hecho el
    18/11/2026: la consulta 1, sin RLS, coincide al céntimo con la app; lo excluido en marzo
    son una liquidación de tarjeta en Casa y traspasos internos en Ricardo, sin filas sin Balance).
-4. Probar una importación real con un extracto (Ricardo decide si se guarda).
+4. ~~Probar una importación real~~ (hecho) con un extracto (Ricardo decide si se guarda).
    - 18/11/2026, **solo vista previa** (sin guardar) con un .xls de Sabadell en la cuenta de
      Casa correcta: la plantilla guardada encaja; los meses ya guardados salen enteros como
      duplicados (mismo recuento por mes que en la base de datos) y los meses posteriores, como
@@ -55,7 +55,11 @@ concepto) y el rol admin. Las importaciones no se han probado contra la base de 
      por orden de aparición; la 1.ª usa el hash de siempre y las siguientes añaden `|2`, `|3`…
      La aparición k es duplicada si su hash existe o si la cuenta ya tiene ≥ k movimientos con
      esa clave. Verificado en vista previa con el extracto real.
-   - Falta: importar de verdad (lo hace Ricardo) y comprobar en la base de datos lo guardado.
+   - **Importación real hecha** el 18/11/2026 (Claude, con permiso de Ricardo, desde la app a
+     390 px): Casa · Sabadell Gasto, julio–noviembre de 2026. Comprobado en la base de datos:
+     todo `owner = casa`, `flow = normal`, hash sha256 único por fila, tipo coherente con el
+     signo, las filas idénticas guardadas con hashes distintos. Volver a cargar el archivo da
+     0 nuevos y todo duplicado.
 5. Fase 2 en adelante: Balances, Presupuesto, Supermercado, American Express, Pagos y el
    alta rápida del ➕ (hoy todas son «Próximamente»).
 
