@@ -78,6 +78,18 @@ export async function getSupermarket(ym: YearMonth, today: string): Promise<Supe
     (a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id),
   );
 
+  // Quién pagó las compras con Amex (su gasto enlazado en Pagos).
+  const amexIds = month.filter((p) => p.payment === "amex").map((p) => p.id);
+  if (amexIds.length) {
+    const { data, error } = await supabase.from("amex_expenses").select("purchase_id, paid_by").in("purchase_id", amexIds);
+    if (error) throw new Error(`Error de base de datos: ${error.message}`);
+    const paidBy = new Map((data ?? []).map((r) => [String(r.purchase_id), r.paid_by]));
+    for (const p of month) {
+      const v = paidBy.get(p.id);
+      p.amexPaidBy = v === "andrea" || v === "ricardo" || v === "otros" ? v : null;
+    }
+  }
+
   return {
     summary,
     count: month.length,

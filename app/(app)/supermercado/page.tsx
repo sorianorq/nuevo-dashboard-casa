@@ -6,7 +6,8 @@ import { MonthNav } from "@/components/resumen/month-nav";
 import { StatCard } from "@/components/resumen/stat-card";
 import { CategoryList, Evolution, StoreList } from "@/components/supermercado/breakdowns";
 import { PurchaseHistory } from "@/components/supermercado/purchase-history";
-import { getSession, getSupermarket } from "@/lib/data";
+import { NewPurchaseButton, PurchaseEditor } from "@/components/supermercado/purchase-editor";
+import { getSession, getSupermarket, listStores } from "@/lib/data";
 import { formatAmount, formatDate, formatSignedPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { compareYm, parseYm, todayIso, ymOf } from "@/lib/months";
@@ -37,13 +38,14 @@ async function Content({ searchParams }: { searchParams: PageProps<"/supermercad
   const requested = parseYm(typeof sp.mes === "string" ? sp.mes : undefined);
   const ym = requested && compareYm(requested, currentYm) <= 0 ? requested : currentYm;
 
-  const data = await getSupermarket(ym, today);
+  const [data, stores] = await Promise.all([getSupermarket(ym, today), listStores()]);
   const s = data.summary;
 
   return (
-    <>
+    <PurchaseEditor stores={stores} today={today}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 lg:mb-6">
         <MonthNav ym={ym} maxYm={currentYm} pathname={PATH} params={{}} />
+        <NewPurchaseButton />
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:mb-5 lg:grid-cols-4 lg:gap-4">
@@ -84,6 +86,6 @@ async function Content({ searchParams }: { searchParams: PageProps<"/supermercad
           <PurchaseHistory purchases={data.purchases} />
         </div>
       </div>
-    </>
+    </PurchaseEditor>
   );
 }

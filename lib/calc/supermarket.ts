@@ -16,6 +16,8 @@ export type Purchase = {
   payment: string | null;
   total: number;
   lines: PurchaseLine[];
+  /** Si tiene gasto en la Amex (pagada con Amex): quién la pagó. */
+  amexPaidBy?: "otros" | "andrea" | "ricardo" | null;
 };
 
 export type CategorySpend = {

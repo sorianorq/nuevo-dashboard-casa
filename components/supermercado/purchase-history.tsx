@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 import { ChevronRight, TriangleAlert } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { usePurchaseEditor } from "./purchase-editor";
 import { formatAmount, formatDate } from "@/lib/format";
 import { linesMismatch, type Purchase } from "@/lib/calc/supermarket";
 import { PAYMENT_TYPE_LABEL, SUPER_CATEGORIES, SUPER_CATEGORY_NAME, type PaymentType } from "@/lib/labels";
 
 const payLabel = (p: string | null) => (p && p in PAYMENT_TYPE_LABEL ? PAYMENT_TYPE_LABEL[p as PaymentType] : "Sin forma de pago");
+const payNote = (p: Purchase) =>
+  p.payment === "amex" ? (p.amexPaidBy ? "Amex · también en Pagos" : "Amex · sin gasto en Pagos") : payLabel(p.payment);
 
 /** Historial de compras del mes; al tocar una, su detalle. */
 export function PurchaseHistory({ purchases }: { purchases: Purchase[] }) {
@@ -34,7 +38,7 @@ export function PurchaseHistory({ purchases }: { purchases: Purchase[] }) {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">{p.store?.trim() || "Sin tienda"}</span>
-                  <span className="text-xs text-muted-foreground">{payLabel(p.payment)}</span>
+                  <span className="text-xs text-muted-foreground">{payNote(p)}</span>
                 </span>
                 <span className="text-[15px] font-bold tabular-nums">{formatAmount(p.total)}</span>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -49,6 +53,7 @@ export function PurchaseHistory({ purchases }: { purchases: Purchase[] }) {
 }
 
 function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: () => void }) {
+  const { openEdit } = usePurchaseEditor();
   // Líneas agrupadas por categoría, en el orden de las 14 categorías.
   const byCat = new Map<string, number>();
   for (const l of purchase.lines) byCat.set(l.catId, Math.round(((byCat.get(l.catId) ?? 0) + l.amount) * 100) / 100);
@@ -66,7 +71,7 @@ function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: ()
         <DialogHeader>
           <DialogTitle>{purchase.store?.trim() || "Compra"}</DialogTitle>
           <DialogDescription>
-            {formatDate(purchase.date)} · {payLabel(purchase.payment)}
+            {formatDate(purchase.date)} · {payNote(purchase)}
           </DialogDescription>
         </DialogHeader>
         <ul className="divide-y rounded-xl border text-sm">
@@ -85,8 +90,22 @@ function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: ()
           <p role="note" className="flex gap-2 rounded-xl border border-warning/40 p-3 text-xs">
             <TriangleAlert className="size-4 shrink-0 text-warning" aria-hidden />
             El total no coincide con la suma de las líneas (diferencia {formatAmount(diff)}). El gasto del mes usa el total.
+            Al editarla y guardarla, el total pasará a ser la suma de las líneas.
           </p>
         )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cerrar
+          </Button>
+          <Button
+            onClick={() => {
+              onClose();
+              openEdit(purchase);
+            }}
+          >
+            Editar
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -81,9 +81,12 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    gasto por categoría (`catId`) frente a la media de 12 meses, por tienda, evolución de 12
    meses e historial con el detalle de cada compra. Comprobado: octubre de 2026 = suma
    directa en la base de datos (total, nº de compras, categorías); 390 y 1440 px sin errores.
-   Falta la entrega 2: nueva compra (fecha, tienda con las habituales primero, forma de pago,
-   cuadrícula de 14 categorías, líneas, total), editar y borrar, y el gasto en la Amex para
-   las pagadas con Amex. Necesita un script 07 de permisos de escritura.
+   Entrega 2 **programada, sin probar el guardado**: «+ Nueva compra» (fecha, tienda con las
+   habituales primero + «Otra», forma de pago, «Pagado por» si es Amex, cuadrícula de 14
+   categorías, líneas que se suman por categoría, total), «Editar» y «Borrar» desde el
+   detalle. Con Amex se crea/actualiza/borra su gasto en `amex_expenses` (`purchase_id`,
+   concepto Casa › Compra, `pending = true`, `paid_by` elegido, por defecto `otros`).
+   **Bloqueada por `supabase/sql/07_permisos_supermercado_pagos.sql`** (lo ejecuta Ricardo).
 7. Fases 4–5: Pagos (Amex y personales, con la casilla AMEX), Presupuesto y el alta rápida
    del ➕.
 
