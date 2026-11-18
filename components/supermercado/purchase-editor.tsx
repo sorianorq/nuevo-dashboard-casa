@@ -144,8 +144,11 @@ function PurchaseForm({
     start(async () => {
       const res = await savePurchase(purchase?.id ?? null, { date, store, payment, paidBy, lines });
       if (!res.ok) return void toast.error(res.error);
-      toast.success(editing ? "Compra actualizada" : "Compra guardada");
-      onClose();
+      // Cerrar dentro de la transición: así se cierra junto con la página ya actualizada.
+      start(() => {
+        toast.success(editing ? "Compra actualizada" : "Compra guardada");
+        onClose();
+      });
     });
 
   const remove = () =>
@@ -153,8 +156,10 @@ function PurchaseForm({
       if (!purchase) return;
       const res = await removePurchase(purchase.id);
       if (!res.ok) return void toast.error(res.error);
-      toast.success("Compra borrada");
-      onClose();
+      start(() => {
+        toast.success("Compra borrada");
+        onClose();
+      });
     });
 
   return (

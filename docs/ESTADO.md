@@ -81,12 +81,20 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    gasto por categoría (`catId`) frente a la media de 12 meses, por tienda, evolución de 12
    meses e historial con el detalle de cada compra. Comprobado: octubre de 2026 = suma
    directa en la base de datos (total, nº de compras, categorías); 390 y 1440 px sin errores.
-   Entrega 2 **programada, sin probar el guardado**: «+ Nueva compra» (fecha, tienda con las
-   habituales primero + «Otra», forma de pago, «Pagado por» si es Amex, cuadrícula de 14
-   categorías, líneas que se suman por categoría, total), «Editar» y «Borrar» desde el
-   detalle. Con Amex se crea/actualiza/borra su gasto en `amex_expenses` (`purchase_id`,
-   concepto Casa › Compra, `pending = true`, `paid_by` elegido, por defecto `otros`).
-   **Bloqueada por `supabase/sql/07_permisos_supermercado_pagos.sql`** (lo ejecuta Ricardo).
+   Entrega 2 **hecha y probada** el 18/11/2026 (script 07 ejecutado por Ricardo):
+   «+ Nueva compra» (fecha, tienda con las habituales primero + «Otra», forma de pago,
+   «Pagado por» si es Amex, cuadrícula de 14 categorías, líneas que se suman por categoría,
+   total), «Editar» y «Borrar» desde el detalle. Con Amex se crea/actualiza/borra su gasto
+   en `amex_expenses` (`purchase_id`, `wallet = 'amex'`, concepto «Supermercado · tienda»,
+   `pending = true`, `paid_by` elegido, por defecto `otros`). Probado con la sesión de
+   Ricardo (390 px crear, 1440 px editar): crear con Amex → compra + gasto Amex; añadir línea
+   y cambiar «Pagado por» → se actualizan total y gasto; pasar a Tarjeta → el gasto Amex se
+   borra; volver a Amex → se crea otra vez; borrar → no queda nada (comprobado en la base de
+   datos). El historial se actualiza al cerrar el formulario.
+   - **Ojo:** el Balance de Casa aún no tiene conceptos (ni «Compra»), así que el gasto Amex
+     de una compra se guarda con `concept_id` vacío. No cambia ninguna cifra (en el Balance
+     esos gastos no cuentan; la compra cuenta por Supermercado). Cuando exista Casa › Compra
+     (enlazado, origen Supermercado), las nuevas lo llevarán.
 7. Fases 4–5: Pagos (Amex y personales, con la casilla AMEX), Presupuesto y el alta rápida
    del ➕.
 
@@ -149,8 +157,8 @@ y el rol admin. La importación sí está probada contra la base de datos real (
     lista de la Amex** (confirmado por Ricardo, como en la especificación funcional 5.5): se
     crea su gasto en `amex_expenses` con `purchase_id` y concepto Casa › Compra; editar o
     borrar la compra lo actualiza. En el Balance cuenta una sola vez, en «Compra», porque los
-    gastos con `purchase_id` ya se excluyen. Por defecto `paid_by = 'otros'` (Casa): a
-    confirmar con Ricardo al hacer la fase 3.
+    gastos con `purchase_id` ya se excluyen. Por defecto `paid_by = 'otros'` (Casa), con
+    selector «Pagado por» en el formulario.
 - **Balances, detalles de la entrega 1:**
   - lo escrito a mano (`andrea_balance`) cuenta en cualquier mes, también futuros, como en
     producción; lo automático, solo hasta el mes en curso;
