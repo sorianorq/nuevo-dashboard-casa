@@ -11,7 +11,7 @@ export function AmexCard({ monthSpent, pending }: { monthSpent: number; pending:
           <CreditCard className="size-4 text-brand" aria-hidden />
           American Express
         </h2>
-        <Link href="/pagos/amex" className="inline-flex min-h-11 items-center text-xs font-semibold text-brand hover:underline">
+        <Link href="/pagos?ver=amex" className="inline-flex min-h-11 items-center text-xs font-semibold text-brand hover:underline">
           Ver
         </Link>
       </div>

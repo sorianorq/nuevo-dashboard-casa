@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { isOwner, OWNERS, type Person } from "@/lib/balance";
+import { isOwner, isPerson, OWNERS, type Owner, type Person } from "@/lib/balance";
 import {
   isPaidBy,
   round2,
@@ -182,8 +182,9 @@ export async function getAmex(ym: YearMonth): Promise<AmexData> {
 export type ConceptSpend = { key: string; conceptId: string | null; amount: number; budget: number | null };
 
 export type PersonalData = {
-  person: Person;
-  /** Gastos de la persona en el mes (con sus medios de pago o con la Amex). */
+  /** Vista: Casa (gastos apuntados al Balance de Casa) o una persona. */
+  person: Owner;
+  /** Gastos del mes (de la persona, o con concepto de Casa). */
   month: Payment[];
   spent: number;
   /** Presupuesto del mes de sus conceptos de Pagos (null = sin presupuesto). */
@@ -191,7 +192,10 @@ export type PersonalData = {
   /** Gastado en sus conceptos con presupuesto (lo que se compara con él). */
   spentBudgeted: number;
   byConcept: ConceptSpend[];
+  /** Medios de pago del formulario (los de quien apunta). */
   methods: PaymentMethod[];
+  /** Nombre de cada medio de pago que sale en la lista (de cualquier persona visible). */
+  methodNames: Record<string, string>;
   concepts: PagosConcept[];
   conceptsComplete: boolean;
   refs: Record<string, ConceptRef>;
@@ -216,35 +220,48 @@ async function paymentMethods(person: Person): Promise<PaymentMethod[]> {
   }));
 }
 
-/**
- * Pagos de una persona (Pagos · <persona>): sus pagos con tarjeta, efectivo…
- * (`wallet` = la persona) y los que pagó con la Amex. Las compras del Súper
- * pagadas con Amex no entran: cuentan en Supermercado.
- */
-export async function getPersonalPayments(ctx: DataContext, ym: YearMonth): Promise<PersonalData> {
-  const person = ctx.person;
-  if (!ctx.allowedOwners.includes(person)) throw new Error("Balance no permitido para este usuario");
+/** Ids de todos los conceptos de Casa (también los que no son de Pagos). */
+async function casaConceptIds(): Promise<string[]> {
   const supabase = await createClient();
-  const [rows, methods, { concepts, complete }, history, budgets] = await Promise.all([
-    fetchAll((a, b) =>
-      supabase
-        .from("amex_expenses")
-        .select(COLUMNS)
-        .or(`wallet.eq.${person},and(wallet.eq.amex,paid_by.eq.${person})`)
+  const rows = await fetchAll((a, b) =>
+    supabase.from("andrea_concepts").select("id").eq("owner", "casa").order("id").range(a, b),
+  );
+  return rows.map((r) => String(r.id));
+}
+
+/**
+ * Pagos de una vista (Pagos · Casa / <persona>). Las compras del Súper
+ * pagadas con Amex no entran: cuentan en Supermercado.
+ *  - persona: sus pagos con tarjeta, efectivo… (`wallet` = la persona) y los
+ *    que pagó con la Amex;
+ *  - Casa: los gastos con concepto del Balance de Casa, pagara quien pagara
+ *    (los que RLS deja ver).
+ * `me` es quien apunta: sus medios de pago van al formulario.
+ */
+export async function getPersonalPayments(ctx: DataContext, ym: YearMonth, view: Owner, me: Person): Promise<PersonalData> {
+  if (!ctx.allowedOwners.includes(view)) throw new Error("Balance no permitido para este usuario");
+  if (!ctx.allowedOwners.includes(me)) throw new Error("Balance no permitido para este usuario");
+  const supabase = await createClient();
+  const visiblePeople = ctx.allowedOwners.filter((o): o is Person => isPerson(o));
+  const [rawRows, casaIds, methodLists, { concepts, complete }, history, budgets] = await Promise.all([
+    fetchAll((a, b) => {
+      const q = supabase.from("amex_expenses").select(COLUMNS);
+      return (view === "casa" ? q.not("concept_id", "is", null) : q.or(`wallet.eq.${view},and(wallet.eq.amex,paid_by.eq.${view})`))
         .is("purchase_id", null)
         .gte("expense_date", monthStart(ym))
         .lte("expense_date", monthEnd(ym))
         .order("id")
-        .range(a, b),
-    ),
-    paymentMethods(person),
+        .range(a, b);
+    }),
+    view === "casa" ? casaConceptIds() : Promise.resolve([] as string[]),
+    Promise.all((view === "casa" ? visiblePeople : [view as Person]).map(async (p) => [p, await paymentMethods(p)] as const)),
     listPagosConcepts(ctx),
     suggestionHistory(),
     fetchAll((a, b) =>
       supabase
         .from("monthly_budgets")
         .select("id, concept_id, budget_amount")
-        .eq("owner", person)
+        .eq("owner", view)
         .eq("year", ym.year)
         .eq("month", ym.month)
         .order("id")
@@ -252,11 +269,13 @@ export async function getPersonalPayments(ctx: DataContext, ym: YearMonth): Prom
     ),
   ]);
 
+  const casa = new Set(casaIds);
+  const rows = view === "casa" ? rawRows.filter((r) => casa.has(String(r.concept_id))) : rawRows;
   const month = rows
     .map(toPayment)
     .sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description, "es"));
 
-  const own = new Set(concepts.filter((c) => c.owner === person).map((c) => c.id));
+  const own = new Set(concepts.filter((c) => c.owner === view).map((c) => c.id));
   const budgetOf = new Map<string, number>();
   for (const b of budgets) {
     const id = b.concept_id ? String(b.concept_id) : null;
@@ -276,14 +295,19 @@ export async function getPersonalPayments(ctx: DataContext, ym: YearMonth): Prom
   const spentBudgeted = round2(month.filter((p) => p.conceptId && budgetOf.has(p.conceptId)).reduce((s, p) => s + p.amount, 0));
   const ids = month.map((p) => p.conceptId).filter((id): id is string => id !== null);
 
+  const methodNames: Record<string, string> = {};
+  for (const [, list] of methodLists) for (const m of list) methodNames[m.id] = m.name;
+  const methods = methodLists.find(([p]) => p === me)?.[1] ?? (await paymentMethods(me));
+
   return {
-    person,
+    person: view,
     month,
     spent: round2(month.reduce((s, p) => s + p.amount, 0)),
     budget,
     spentBudgeted,
     byConcept: [...spend.values()].sort((a, b) => b.amount - a.amount || (b.budget ?? 0) - (a.budget ?? 0)),
     methods,
+    methodNames,
     concepts,
     conceptsComplete: complete,
     refs: await conceptRefs(ctx, concepts, ids),

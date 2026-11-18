@@ -44,6 +44,8 @@ export type PaymentFormProps = {
   me: Person;
   /** Balances visibles para el rol. */
   visibleOwners: Owner[];
+  /** Balance de un gasto nuevo (por defecto, el de quien pagó). */
+  defaultOwner?: Owner;
   today: string;
   /** Tras guardar o borrar. */
   onDone: () => void;
@@ -98,7 +100,8 @@ export function PaymentForm(props: PaymentFormProps) {
     ? byId.get(payment.conceptId)
     : undefined;
   const initialOwner: Owner =
-    initialConcept?.owner ?? defaultOwner(initialPaidBy);
+    initialConcept?.owner ??
+    (!payment && props.defaultOwner ? props.defaultOwner : defaultOwner(initialPaidBy));
 
   const [amount, setAmount] = useState(payment ? toInput(payment.amount) : "");
   const [date, setDate] = useState(payment?.date ?? today);
@@ -292,6 +295,7 @@ export function PaymentForm(props: PaymentFormProps) {
             setMethodId(m.id);
           }}
           idPrefix={idPrefix}
+          person={me}
         />
       ) : (
         <fieldset className="space-y-1.5">
@@ -482,7 +486,9 @@ function PaymentMeans({
   onMethod,
   onCreated,
   idPrefix,
+  person,
 }: {
+  person: Person;
   amex: boolean;
   onAmex: (v: boolean) => void;
   methods: PaymentMethod[];
@@ -499,7 +505,7 @@ function PaymentMeans({
 
   const create = () =>
     start(async () => {
-      const res = await newPaymentMethodAction(name, kind);
+      const res = await newPaymentMethodAction(name, kind, person);
       if (!res.ok) return void toast.error(res.error);
       start(() => {
         toast.success(`Medio de pago «${res.method.name}» añadido`);

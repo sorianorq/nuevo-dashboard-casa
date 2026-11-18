@@ -237,7 +237,7 @@ function sourceLink(tab: string, month: string, l: BudgetLine): { href: string; 
     return { href: `/contabilidad/movimientos?${qs({ ...balance, concepto: l.conceptId, mes: month })}`, label: "Ver movimientos" };
   }
   if (l.linkSource === "supermercado") return { href: `/supermercado?${qs({ mes: month })}`, label: "Ver Supermercado" };
-  if (l.linkSource === "pagos") return { href: `/pagos/amex?${qs({ mes: month })}`, label: "Ver Pagos · Amex" };
+  if (l.linkSource === "pagos") return { href: `/pagos?${qs({ ver: "amex", mes: month })}`, label: "Ver Pagos · Amex" };
   return { href: `/contabilidad/balances?${qs({ ...balance, mes: month })}`, label: "Ver en Balances (importe a mano)" };
 }
 

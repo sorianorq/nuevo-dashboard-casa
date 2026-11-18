@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { isOwner, isPerson, OWNER_LABEL, type Owner } from "@/lib/balance";
+import { isOwner, isPerson, OWNER_LABEL, type Owner, type Person } from "@/lib/balance";
 import {
   isOthersName,
   isPaidBy,
@@ -226,10 +226,10 @@ export async function markTransferred(ids: string[]): Promise<number> {
   return data?.length ?? 0;
 }
 
-/** «+ Nuevo» medio de pago de la persona de la sesión (o la elegida por admin). */
-export async function createPaymentMethod(name: string, kind: PaymentMethodKind): Promise<PaymentMethod> {
+/** «+ Nuevo» medio de pago de una persona (la propia; admin, cualquiera). */
+export async function createPaymentMethod(name: string, kind: PaymentMethodKind, person: Person): Promise<PaymentMethod> {
   const ctx = await getDataContext();
-  const person = ctx.person;
+  if (!isPerson(person) || !ctx.allowedOwners.includes(person)) throw new Error("Solo puedes crear tus propios medios de pago.");
   const clean = name.trim().replace(/\s+/g, " ");
   if (!clean) throw new Error("Escribe el nombre del medio de pago.");
   if (clean.length > 40) throw new Error("El nombre es demasiado largo.");

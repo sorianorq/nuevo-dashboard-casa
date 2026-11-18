@@ -236,6 +236,19 @@ y el rol admin. La importación sí está probada contra la base de datos real (
     borrar la compra lo actualiza. En el Balance cuenta una sola vez, en «Compra», porque los
     gastos con `purchase_id` ya se excluyen. Por defecto `paid_by = 'otros'` (Casa), con
     selector «Pagado por» en el formulario.
+- **Pagos en una sola pantalla, decidido por Ricardo el 18/11/2026** (cambio tras la fase 5):
+  - «Pagos» ya no tiene subsecciones: `/pagos` con selector **Casa · Ricardo · Andrea · Amex**
+    (`?ver=casa|ricardo|andrea|amex`; sin `ver`, la persona de la sesión). Cada rol ve
+    Casa, los Balances que puede ver y la Amex (Ricardo: Casa · Ricardo · Amex; admin: las 4).
+    No se tocan permisos. `/pagos/amex` y `/pagos/personales` redirigen (`next.config.ts`);
+  - **Casa** = gastos de `amex_expenses` con concepto del Balance de Casa (sin `purchase_id`),
+    pagara quien pagara, con el diseño de la vista de persona; cada fila dice quién pagó.
+    Solo los que RLS deja ver (un pago con la tarjeta personal de Andrea apuntado a Casa no
+    lo ve Ricardo). El alta desde Casa propone el Balance de Casa;
+  - el «+ Nuevo» medio de pago se crea para la persona del formulario (antes, la de la cookie
+    de admin). Probado con la sesión de Ricardo (390 y 1440 px) y con admin (390 px): mismas
+    cifras que antes (Ricardo 392,45 €, Andrea 719,08 €, Amex 1.167,99 € en noviembre);
+    alta y borrado de un gasto de prueba en Casa sin errores.
 - **Pagos, decidido por Ricardo el 18/11/2026** (fase 4):
   - paga siempre **Andrea o Ricardo**; «otros» solo se conserva en los gastos antiguos (al
     editarlos se puede dejar, y entonces van a Casa). En Supermercado con Amex, «Pagado por»

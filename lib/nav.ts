@@ -56,12 +56,8 @@ export const NAV: NavSection[] = [
     label: "Pagos",
     shortLabel: "Pagos",
     icon: "pagos",
-    href: "/pagos/amex",
+    href: "/pagos",
     match: "/pagos",
-    children: [
-      { label: "American Express", href: "/pagos/amex" },
-      { label: "Pagos", href: "/pagos/personales" },
-    ],
   },
 ];
 

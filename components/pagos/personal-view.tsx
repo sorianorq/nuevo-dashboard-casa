@@ -8,11 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { cn } from "@/lib/utils";
 import { formatAmount, formatDate, formatDayHeading, formatPercent } from "@/lib/format";
 import { OWNER_LABEL } from "@/lib/balance";
-import { conceptLabel, type Payment } from "@/lib/calc/pagos";
+import { conceptLabel, PAID_BY_LABEL, type PaidBy, type Payment } from "@/lib/calc/pagos";
 import type { PersonalData } from "@/lib/data/pagos";
 import { PaymentForm, type PaymentFormProps } from "./payment-form";
 
-type Shared = Omit<PaymentFormProps, "payment" | "onDone" | "onCancel" | "idPrefix" | "mode" | "methods">;
+type Shared = Omit<PaymentFormProps, "payment" | "onDone" | "onCancel" | "idPrefix" | "mode" | "methods" | "defaultOwner">;
 
 type Props = Shared & {
   data: Omit<PersonalData, "concepts" | "conceptsComplete" | "history">;
@@ -23,14 +23,21 @@ type Props = Shared & {
 const AMEX = "__amex";
 const NO_CONCEPT = "__none";
 
-/** Pagos de una persona: gastado frente a presupuesto, por concepto y lista. */
+/**
+ * Pagos de una vista (Casa o una persona): gastado frente a presupuesto, por
+ * concepto y lista. En Casa, cada gasto dice además quién lo pagó.
+ */
 export function PersonalView({ data, monthLabel, monthNav, ...shared }: Props) {
   const [editing, setEditing] = useState<{ payment: Payment | null; key: number } | null>(null);
   const [formKey, setFormKey] = useState(0);
-  const methodName = useMemo(() => new Map(data.methods.map((m) => [m.id, m.name])), [data.methods]);
+  const isCasa = data.person === "casa";
+  const formOwner = isCasa ? ("casa" as const) : undefined;
 
-  const means = (p: Payment) => (p.wallet === "amex" ? "Amex" : ((p.paymentMethodId && methodName.get(p.paymentMethodId)) ?? "Sin medio de pago"));
-  const describe = (p: Payment) => conceptLabel(p.conceptId ? data.refs[p.conceptId] : undefined, p.paidBy);
+  const means = (p: Payment) => {
+    const how = p.wallet === "amex" ? "Amex" : ((p.paymentMethodId && data.methodNames[p.paymentMethodId]) ?? "Sin medio de pago");
+    return isCasa && p.paidBy && p.paidBy !== "otros" ? `${PAID_BY_LABEL[p.paidBy]} · ${how}` : how;
+  };
+  const describe = (p: Payment) => viewConceptLabel(data, p.conceptId, p.paidBy);
   const open = (p: Payment | null) => setEditing({ payment: p, key: Date.now() });
 
   return (
@@ -52,6 +59,7 @@ export function PersonalView({ data, monthLabel, monthNav, ...shared }: Props) {
             {...shared}
             mode="personal"
             methods={data.methods}
+            defaultOwner={formOwner}
             payment={null}
             idPrefix="desk"
             onDone={() => setFormKey((k) => k + 1)}
@@ -61,7 +69,7 @@ export function PersonalView({ data, monthLabel, monthNav, ...shared }: Props) {
         <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
           <BudgetCard data={data} monthLabel={monthLabel} />
           <ConceptBars data={data} />
-          <List rows={data.month} methods={data.methods} means={means} describe={describe} onOpen={open} />
+          <List rows={data.month} methodNames={data.methodNames} means={means} describe={describe} onOpen={open} />
         </div>
       </div>
 
@@ -70,13 +78,16 @@ export function PersonalView({ data, monthLabel, monthNav, ...shared }: Props) {
           <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{editing.payment ? "Editar gasto" : "Nuevo gasto"}</DialogTitle>
-              <DialogDescription>Pagos de {OWNER_LABEL[data.person]} · cuenta en el Balance que elijas.</DialogDescription>
+              <DialogDescription>
+                {isCasa ? "Pagos de Casa · lo apunta quien pagó." : `Pagos de ${OWNER_LABEL[data.person]} · cuenta en el Balance que elijas.`}
+              </DialogDescription>
             </DialogHeader>
             <PaymentForm
               key={editing.key}
               {...shared}
               mode="personal"
               methods={data.methods}
+              defaultOwner={formOwner}
               payment={editing.payment}
               idPrefix="dlg"
               onDone={() => setEditing(null)}
@@ -138,7 +149,7 @@ function ConceptBars({ data }: { data: Props["data"] }) {
       </h2>
       <ul className="space-y-3">
         {data.byConcept.map((c) => {
-          const name = c.conceptId ? conceptLabel(data.refs[c.conceptId], data.person) : "Sin concepto";
+          const name = viewConceptLabel(data, c.conceptId, null);
           const over = c.budget !== null && c.amount > c.budget;
           const near = c.budget !== null && c.budget > 0 && c.amount / c.budget >= 0.9;
           return (
@@ -164,13 +175,13 @@ function ConceptBars({ data }: { data: Props["data"] }) {
 
 function List({
   rows,
-  methods,
+  methodNames,
   means,
   describe,
   onOpen,
 }: {
   rows: Payment[];
-  methods: PersonalData["methods"];
+  methodNames: PersonalData["methodNames"];
   means: (p: Payment) => string;
   describe: (p: Payment) => string;
   onOpen: (p: Payment) => void;
@@ -219,11 +230,13 @@ function List({
         <select aria-label="Medio de pago" value={method} onChange={(e) => setMethod(e.target.value)} className={cn(select, "sm:max-w-56")}>
           <option value="">Medio de pago: todos</option>
           <option value={AMEX}>Amex</option>
-          {methods.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
+          {Object.entries(methodNames)
+            .sort((a, b) => a[1].localeCompare(b[1], "es"))
+            .map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
         </select>
         <select aria-label="Concepto" value={concept} onChange={(e) => setConcept(e.target.value)} className={cn(select, "sm:max-w-56")}>
           <option value="">Concepto: todos</option>
@@ -307,4 +320,11 @@ function List({
       )}
     </section>
   );
+}
+
+/** Concepto como se lee en esta vista: sin «Balance ›» si es de la propia vista. */
+function viewConceptLabel(data: Props["data"], conceptId: string | null, paidBy: PaidBy | null) {
+  const ref = conceptId ? data.refs[conceptId] : undefined;
+  if (ref && ref.owner === data.person) return ref.name;
+  return conceptLabel(ref, paidBy);
 }

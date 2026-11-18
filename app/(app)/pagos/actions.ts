@@ -12,6 +12,7 @@ import {
 } from "@/lib/data";
 import { todayIso } from "@/lib/months";
 import type { PaymentMethodKind } from "@/lib/calc/pagos";
+import { isPerson } from "@/lib/balance";
 
 /**
  * Acciones de Pagos. El usuario y su rol salen siempre de la sesión en el
@@ -82,10 +83,10 @@ export async function markTransferredAction(ids: string[]) {
   });
 }
 
-export async function newPaymentMethodAction(name: string, kind: PaymentMethodKind) {
+export async function newPaymentMethodAction(name: string, kind: PaymentMethodKind, person: string) {
   return run(async () => {
-    if (typeof name !== "string" || typeof kind !== "string") throw new Error("Datos no válidos.");
-    const method = await createPaymentMethod(name, kind);
+    if (typeof name !== "string" || typeof kind !== "string" || !isPerson(person)) throw new Error("Datos no válidos.");
+    const method = await createPaymentMethod(name, kind, person);
     return { method };
   });
 }
