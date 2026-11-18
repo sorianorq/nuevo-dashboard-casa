@@ -7,7 +7,7 @@ import { StatCard } from "@/components/resumen/stat-card";
 import { CategoryList, Evolution, StoreList } from "@/components/supermercado/breakdowns";
 import { PurchaseHistory } from "@/components/supermercado/purchase-history";
 import { NewPurchaseButton, PurchaseEditor } from "@/components/supermercado/purchase-editor";
-import { getSession, getSupermarket, listStores } from "@/lib/data";
+import { getDataContext, getSupermarket, listStores } from "@/lib/data";
 import { formatAmount, formatDate, formatSignedPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { compareYm, parseYm, todayIso, ymOf } from "@/lib/months";
@@ -32,7 +32,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/supermercad
   const sp = await searchParams;
   // Sesión antes de leer la hora: con Cache Components, `new Date()` necesita
   // un acceso dinámico previo (cookies) para calcularse en cada petición.
-  await getSession();
+  const ctx = await getDataContext();
   const today = todayIso();
   const currentYm = ymOf(today);
   const requested = parseYm(typeof sp.mes === "string" ? sp.mes : undefined);
@@ -42,7 +42,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/supermercad
   const s = data.summary;
 
   return (
-    <PurchaseEditor stores={stores} today={today}>
+    <PurchaseEditor stores={stores} today={today} me={ctx.person}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 lg:mb-6">
         <MonthNav ym={ym} maxYm={currentYm} pathname={PATH} params={{}} />
         <NewPurchaseButton />

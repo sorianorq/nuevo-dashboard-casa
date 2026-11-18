@@ -13,15 +13,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Chip } from "@/components/ui/chip";
 import { cn } from "@/lib/utils";
+import type { Person } from "@/lib/balance";
 import { formatAmount } from "@/lib/format";
 import type { Purchase } from "@/lib/calc/supermarket";
 import { PAYMENT_TYPE_LABEL, SUPER_CATEGORIES, SUPER_CATEGORY_NAME, type PaymentType } from "@/lib/labels";
 import { parseAmount } from "@/components/balances/balance-editor";
 import { removePurchase, savePurchase } from "@/app/(app)/supermercado/actions";
 
-type PaidBy = "otros" | "andrea" | "ricardo";
-const PAID_BY_LABEL: Record<PaidBy, string> = { otros: "Otros (Casa)", andrea: "Andrea", ricardo: "Ricardo" };
+type PaidBy = Person;
+const PAID_BY_LABEL: Record<PaidBy, string> = { andrea: "Andrea", ricardo: "Ricardo" };
 const PAYMENTS: PaymentType[] = ["tarjeta", "efectivo", "amex", "otros"];
 const SHORT: Record<string, string> = {
   frutas: "Frutas",
@@ -50,7 +52,18 @@ export function usePurchaseEditor() {
 }
 
 /** Proveedor de alta y edición de compras (formulario en ventana). */
-export function PurchaseEditor({ stores, today, children }: { stores: string[]; today: string; children: React.ReactNode }) {
+export function PurchaseEditor({
+  stores,
+  today,
+  me,
+  children,
+}: {
+  stores: string[];
+  today: string;
+  /** Quien ha entrado (por defecto, quien paga con Amex). */
+  me: Person;
+  children: React.ReactNode;
+}) {
   const [state, setState] = useState<{ purchase: Purchase | null; key: number } | null>(null);
   return (
     <EditorContext.Provider
@@ -61,7 +74,7 @@ export function PurchaseEditor({ stores, today, children }: { stores: string[]; 
     >
       {children}
       {state && (
-        <PurchaseForm key={state.key} purchase={state.purchase} stores={stores} today={today} onClose={() => setState(null)} />
+        <PurchaseForm key={state.key} purchase={state.purchase} stores={stores} today={today} me={me} onClose={() => setState(null)} />
       )}
     </EditorContext.Provider>
   );
@@ -76,31 +89,17 @@ export function NewPurchaseButton() {
   );
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "min-h-11 rounded-full border px-3.5 text-sm font-semibold transition-colors",
-        active ? "border-foreground bg-foreground text-background" : "bg-surface hover:bg-accent",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 function PurchaseForm({
   purchase,
   stores,
   today,
+  me,
   onClose,
 }: {
   purchase: Purchase | null;
   stores: string[];
   today: string;
+  me: Person;
   onClose: () => void;
 }) {
   const editing = purchase !== null;
@@ -112,7 +111,7 @@ function PurchaseForm({
   const [payment, setPayment] = useState<PaymentType>(
     purchase?.payment && (PAYMENTS as string[]).includes(purchase.payment) ? (purchase.payment as PaymentType) : "tarjeta",
   );
-  const [paidBy, setPaidBy] = useState<PaidBy>(purchase?.amexPaidBy ?? "otros");
+  const [paidBy, setPaidBy] = useState<PaidBy>(purchase?.amexPaidBy === "andrea" || purchase?.amexPaidBy === "ricardo" ? purchase.amexPaidBy : me);
   const [lines, setLines] = useState<{ catId: string; amount: number }[]>(() => {
     const m = new Map<string, number>();
     for (const l of purchase?.lines ?? []) m.set(l.catId, Math.round(((m.get(l.catId) ?? 0) + l.amount) * 100) / 100);

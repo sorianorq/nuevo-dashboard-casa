@@ -95,8 +95,18 @@ y el rol admin. La importación sí está probada contra la base de datos real (
      de una compra se guarda con `concept_id` vacío. No cambia ninguna cifra (en el Balance
      esos gastos no cuentan; la compra cuenta por Supermercado). Cuando exista Casa › Compra
      (enlazado, origen Supermercado), las nuevas lo llevarán.
-7. Fases 4–5: Pagos (Amex y personales, con la casilla AMEX), Presupuesto y el alta rápida
-   del ➕.
+7. **Fase 4 · Pagos.** Entrega 1 (American Express) **programada, sin probar el guardado**
+   (18/11/2026): datos clave del mes (gastado, pendiente de traspaso de todas las fechas, por
+   persona), pendientes con casillas y «Marcar como traspasados», filtros (buscar, pagado por,
+   concepto, solo pendientes), lista por día (móvil) y tabla (ordenador), formulario de alta
+   siempre visible a la izquierda en ordenador y en ventana en móvil; tocar un gasto lo edita
+   (o, si sale de una compra, lleva a Supermercado). Comprobado sin guardar con la sesión de
+   Ricardo: octubre y noviembre de 2026 = suma directa en la base de datos (total, por
+   persona, pendiente); filtros; 390 y 1440 px sin errores ni scroll horizontal.
+   **Bloqueada por `supabase/sql/08_conceptos_de_pagos.sql`** (lo ejecuta Ricardo; sin él
+   no se puede apuntar en el Balance del otro). Después: probar alta, edición, borrado y
+   traspasos. Entrega 2: Pagos personales (medio de pago, casilla AMEX, presupuesto).
+8. Fase 5: Presupuesto y el alta rápida del ➕.
 
 ## 4. Hallazgos en los datos y en la app en producción
 
@@ -159,6 +169,18 @@ y el rol admin. La importación sí está probada contra la base de datos real (
     borrar la compra lo actualiza. En el Balance cuenta una sola vez, en «Compra», porque los
     gastos con `purchase_id` ya se excluyen. Por defecto `paid_by = 'otros'` (Casa), con
     selector «Pagado por» en el formulario.
+- **Pagos, decidido por Ricardo el 18/11/2026** (fase 4):
+  - paga siempre **Andrea o Ricardo**; «otros» solo se conserva en los gastos antiguos (al
+    editarlos se puede dejar, y entonces van a Casa). En Supermercado con Amex, «Pagado por»
+    es Andrea o Ricardo (por defecto quien ha entrado);
+  - el gasto va al Balance de quien pagó **o a Casa**. Si Ricardo apunta algo que pagó
+    Andrea, va al Balance de Andrea aunque él no lo vea: los nombres de los conceptos de Pagos
+    de todos salen de la función `fc_pagos_concepts()` (script 08);
+  - concepto obligatorio: se sugiere por gastos parecidos ya clasificados (misma regla que al
+    cargar extractos); si no hay, «Otros gastos» de ese Balance. Casa no tiene ninguno: la app
+    lo crea (enlazado, origen Pagos) la primera vez que se guarda un gasto en Casa;
+  - «Pendiente de traspaso» se marca por defecto si el gasto va a un Balance personal y no
+    si va a Casa (se puede cambiar).
 - **Balances, detalles de la entrega 1:**
   - lo escrito a mano (`andrea_balance`) cuenta en cualquier mes, también futuros, como en
     producción; lo automático, solo hasta el mes en curso;

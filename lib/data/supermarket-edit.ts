@@ -12,13 +12,13 @@ import { fetchAll } from "./query";
  * 18/11/2026). En el Balance cuenta una sola vez, en «Compra».
  */
 
-export type PaidBy = "otros" | "andrea" | "ricardo";
+export type PaidBy = "andrea" | "ricardo";
 
 export type PurchaseInput = {
   date: string;
   store: string;
   payment: PaymentType;
-  /** Solo Amex: quién la pagó (por defecto, otros = Casa). */
+  /** Solo Amex: quién la pagó (Andrea o Ricardo; decisión de Ricardo, 18/11/2026). */
   paidBy: PaidBy;
   lines: { catId: string; amount: number }[];
 };
@@ -34,7 +34,7 @@ function clean(input: PurchaseInput) {
   if (!store) throw new Error("Escribe la tienda.");
   if (store.length > 80) throw new Error("El nombre de la tienda es demasiado largo.");
   if (!PAYMENT_TYPES.includes(input.payment)) throw new Error("Forma de pago no válida.");
-  if (!["otros", "andrea", "ricardo"].includes(input.paidBy)) throw new Error("«Pagado por» no válido.");
+  if (!["andrea", "ricardo"].includes(input.paidBy)) throw new Error("Elige quién la pagó: Andrea o Ricardo.");
   if (!Array.isArray(input.lines) || input.lines.length === 0) throw new Error("Añade al menos una línea.");
   if (input.lines.length > 50) throw new Error("Demasiadas líneas.");
 
