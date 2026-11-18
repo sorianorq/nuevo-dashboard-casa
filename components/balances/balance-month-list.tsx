@@ -6,7 +6,7 @@ import { formatAmount, formatSignedAmount } from "@/lib/format";
 import type { BalanceRow, BalanceSheet } from "@/lib/calc/balance";
 import { SECTION_LABEL, type ConceptSection } from "@/lib/labels";
 import { cellNote, deviationTone, valuesFor, type BalanceView } from "./shared";
-import { AddConceptButton, ConceptMenu, DeleteConceptButton, ManualCellInput, useBalanceEditor, useDisplaySheet } from "./balance-editor";
+import { AddConceptButton, ConceptMenu, DeleteConceptButton, HideRowButton, ManualCellInput, useBalanceEditor, useDisplaySheet } from "./balance-editor";
 
 const TOTAL_LABEL: Record<ConceptSection, string> = {
   ingresos: "Total ingresos",
@@ -99,6 +99,7 @@ export function BalanceMonthList({
         className={cn("flex items-center gap-1 border-b", (r.archived || hidden.has(r.id)) && "text-muted-foreground")}
       >
         <DeleteConceptButton row={r} className="size-9" />
+        <HideRowButton row={r} className="size-9" />
         {editable ? (
           <button
             type="button"

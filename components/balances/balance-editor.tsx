@@ -746,3 +746,36 @@ export function ConceptNoteInput({ row }: { row: BalanceRow }) {
     />
   );
 }
+
+/**
+ * Icono de ocultar / mostrar la fila (como en Excel): solo para quien la
+ * oculta y sigue sumando en los totales. Las ocultas se ven con «Mostrar».
+ */
+export function HideRowButton({ row, className }: { row: BalanceRow; className?: string }) {
+  const { tab, hidden } = useBalanceEditor();
+  const [pending, start] = useTransition();
+  const isHidden = hidden.has(row.id);
+  const toggle = () =>
+    start(async () => {
+      const res = await hideConcept(tab, row.id, !isHidden);
+      if (!res.ok) return void toast.error(res.error);
+      toast.success(isHidden ? `«${row.name}» visible` : `«${row.name}» oculta (sigue sumando)`);
+    });
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={pending}
+      aria-pressed={isHidden}
+      aria-label={isHidden ? `Mostrar la fila ${row.name}` : `Ocultar la fila ${row.name}`}
+      title={isHidden ? "Mostrar fila" : "Ocultar fila (sigue sumando)"}
+      className={cn(
+        "grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-foreground disabled:opacity-50",
+        isHidden && "text-brand",
+        className,
+      )}
+    >
+      {isHidden ? <Eye className="size-3.5" aria-hidden /> : <EyeOff className="size-3.5" aria-hidden />}
+    </button>
+  );
+}

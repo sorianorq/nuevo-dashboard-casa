@@ -12,6 +12,7 @@ import {
   ConceptMenu,
   ConceptNoteInput,
   DeleteConceptButton,
+  HideRowButton,
   ManualCellInput,
   useBalanceEditor,
   useDisplaySheet,
@@ -148,6 +149,7 @@ export function BalanceTable({
         >
           <span className="flex items-center gap-1.5">
             <DeleteConceptButton row={row} className="-ml-2" />
+            <HideRowButton row={row} className="-ml-1.5" />
             {isSub ? (
               <button
                 type="button"

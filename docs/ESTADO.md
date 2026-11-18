@@ -281,6 +281,9 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Ocultar fila (como en Excel):** icono de ojo junto a la papelera de cada concepto en
+  Balances (tabla y móvil). Es el mismo «Ocultar» del menú «⋯»: solo para quien la oculta
+  (`user_preferences`), sigue sumando, y se ven con «N filas ocultas · Mostrar».
 - **Extractos y lo escrito a mano:** al pulsar «Importar», si algún movimiento cae en un
   concepto enlazado al banco y mes con importe escrito a mano, se listan esos casos y en cada
   uno se elige «Mantener lo escrito» (por defecto) o «Usar el extracto» (se borra lo escrito
