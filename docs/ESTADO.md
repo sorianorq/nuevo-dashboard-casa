@@ -236,6 +236,22 @@ y el rol admin. La importación sí está probada contra la base de datos real (
     borrar la compra lo actualiza. En el Balance cuenta una sola vez, en «Compra», porque los
     gastos con `purchase_id` ya se excluyen. Por defecto `paid_by = 'otros'` (Casa), con
     selector «Pagado por» en el formulario.
+- **Conceptos de Andrea, según la lista de Ricardo (18/11/2026)**, aplicados con la sesión
+  admin y copia previa de sus tablas: subtotales «Total Ingresos» y «Seguros»; renombrados
+  (con importes, comentarios y periodicidad): Salario UCM → UCM, Clínica Alandez → Alández,
+  Diez → Díez y Bonilla, Proxidental (Getafe) → Proxidental, Seguro Ocaso/AMA (V/TA)/AXA/
+  AMA (R.C.) → OCASO/AMA (VITA)/AXA/AMA (R.C), Cuota Autónomos → Cuota autónomos, Gastos
+  Comunes Ricardo → Gastos comunes casa, Ahorro mensual viajes → Viajes, Otros Ahorro →
+  Otras inversiones; nuevos (a mano): Clínica Prieto & Serrano, Curaprox, Cursos y
+  ponencias, Joana, Hacienda, Andbank. Los ingresos que no estaban en la lista (Otros, El
+  Rosario, Adelaida Parra, Sanitas Valdebebas, Las Tablas) siguen activos en Total Ingresos.
+  **Archivados** los gastos variables (Gastos de Pagos: Ocio, Belleza, Compras, Coche, Otros
+  gastos; sin nada apuntado): por eso **no se puede apuntar a mano un gasto en el Balance de
+  Andrea** (la app avisa); decisión de Ricardo. Sumas de `andrea_balance` por año y bloque
+  iguales antes y después. La app de producción tiene nombres fijos en su código: allí los
+  renombrados pueden verse vacíos.
+- **El bloque «Ahorro» se llama «Inversión»** en toda la app (decisión de Ricardo); el
+  «Ahorro» del Resumen (ingresos − gastos) no cambia.
 - **Movimientos sustituye a Pagos, decidido por Ricardo el 18/11/2026** (cambio tras la fase 5;
   sustituye a la pantalla única de Pagos con selector, que duró unas horas):
   - menú: Resumen · Contabilidad (Balances, Presupuesto) · Supermercado · **Movimientos**.

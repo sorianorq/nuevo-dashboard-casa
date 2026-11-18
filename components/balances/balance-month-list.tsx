@@ -11,7 +11,7 @@ import { AddConceptButton, ConceptMenu, useBalanceEditor } from "./balance-edito
 const TOTAL_LABEL: Record<ConceptSection, string> = {
   ingresos: "Total ingresos",
   gastos: "Total gastos",
-  ahorro: "Total ahorro",
+  ahorro: "Total inversión",
 };
 
 /** Balance de un mes (móvil): conceptos en lista; en Real, presupuesto en gris debajo. */

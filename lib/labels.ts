@@ -15,7 +15,7 @@ export type ConceptSection = "ingresos" | "gastos" | "ahorro";
 export const SECTION_LABEL: Record<ConceptSection, string> = {
   ingresos: "Ingresos",
   gastos: "Gastos",
-  ahorro: "Ahorro",
+  ahorro: "Inversión",
 };
 export const SECTION_ORDER: ConceptSection[] = ["ingresos", "gastos", "ahorro"];
 

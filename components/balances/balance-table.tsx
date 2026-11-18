@@ -13,7 +13,7 @@ const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "S
 const TOTAL_LABEL: Record<ConceptSection, string> = {
   ingresos: "Total ingresos",
   gastos: "Total gastos",
-  ahorro: "Total ahorro",
+  ahorro: "Total inversión",
 };
 
 /** Hoja anual (ordenador): concepto × enero–diciembre + total. */
