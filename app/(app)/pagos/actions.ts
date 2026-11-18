@@ -1,7 +1,16 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { createPaymentMethod, deletePayment, markTransferred, savePayment, type PaymentInput } from "@/lib/data";
+import {
+  createPaymentMethod,
+  deletePayment,
+  getDataContext,
+  getQuickAddData,
+  markTransferred,
+  savePayment,
+  type PaymentInput,
+} from "@/lib/data";
+import { todayIso } from "@/lib/months";
 import type { PaymentMethodKind } from "@/lib/calc/pagos";
 
 /**
@@ -78,5 +87,13 @@ export async function newPaymentMethodAction(name: string, kind: PaymentMethodKi
     if (typeof name !== "string" || typeof kind !== "string") throw new Error("Datos no válidos.");
     const method = await createPaymentMethod(name, kind);
     return { method };
+  });
+}
+
+/** Datos para abrir el alta rápida (➕) desde cualquier pantalla. */
+export async function quickAddDataAction() {
+  return run(async () => {
+    const ctx = await getDataContext();
+    return { data: await getQuickAddData(ctx), today: todayIso() };
   });
 }

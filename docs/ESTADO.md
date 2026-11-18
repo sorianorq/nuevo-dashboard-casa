@@ -141,6 +141,11 @@ y el rol admin. La importación sí está probada contra la base de datos real (
      por defecto solo las que no tienen partida y tuvieron gasto en 3 o más meses.
    - `monthly_budgets` no tiene `user_id`; en `category_group` se guarda el nombre del
      concepto (columna antigua).
+   Alta rápida **hecha y probada** (18/11/2026): el ➕ (móvil) y «+ Añadir gasto»
+   (ordenador) abren una hoja con el formulario de Pagos de la persona (casilla «Pagado con
+   AMEX», medio de pago, Balance Casa o el suyo, concepto sugerido u «Otros gastos»).
+   Probado con la sesión de Ricardo: desde Supermercado en 390 px con AMEX (pendiente) y
+   desde Resumen en 1440 px con Bankinter; los dos de prueba se borraron. Sin errores.
 
 ## 4. Hallazgos en los datos y en la app en producción
 

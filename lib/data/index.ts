@@ -61,6 +61,14 @@ export {
   type PurchaseInput,
   type PaidBy,
 } from "./supermarket-edit";
-export { getAmex, getPersonalPayments, listPagosConcepts, type AmexData, type PersonalData } from "./pagos";
+export {
+  getAmex,
+  getPersonalPayments,
+  getQuickAddData,
+  listPagosConcepts,
+  type AmexData,
+  type PersonalData,
+  type QuickAddData,
+} from "./pagos";
 export { savePayment, deletePayment, markTransferred, createPaymentMethod, type PaymentInput } from "./pagos-edit";
 export { getBudget, setBudgets, type BudgetData, type BudgetConcept } from "./budget";

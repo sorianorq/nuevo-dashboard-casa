@@ -290,3 +290,22 @@ export async function getPersonalPayments(ctx: DataContext, ym: YearMonth): Prom
     history,
   };
 }
+
+export type QuickAddData = {
+  me: Person;
+  visibleOwners: DataContext["allowedOwners"];
+  methods: PaymentMethod[];
+  concepts: PagosConcept[];
+  conceptsComplete: boolean;
+  history: { description: string; conceptId: string; date: string }[];
+};
+
+/** Datos del alta rápida (➕): lo mismo que el formulario de Pagos de la persona. */
+export async function getQuickAddData(ctx: DataContext): Promise<QuickAddData> {
+  const [methods, { concepts, complete }, history] = await Promise.all([
+    paymentMethods(ctx.person),
+    listPagosConcepts(ctx),
+    suggestionHistory(),
+  ]);
+  return { me: ctx.person, visibleOwners: ctx.allowedOwners, methods, concepts, conceptsComplete: complete, history };
+}
