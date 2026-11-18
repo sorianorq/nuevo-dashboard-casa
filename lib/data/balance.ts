@@ -34,8 +34,12 @@ const SOURCES: LinkSource[] = ["movimientos", "pagos", "supermercado"];
  *
  * Origen de cada concepto enlazado (decisión de Ricardo, 18/11/2026):
  * - movimientos → `transactions` del Balance con `flow = 'normal'`;
- * - pagos → `amex_expenses` con ese concepto (sin las que vienen de una compra
- *   de Supermercado, que ya cuentan en su concepto de Supermercado);
+ * - Pagos y Amex (`amex_expenses`) con concepto suman en ese concepto enlazado
+ *   SEA CUAL SEA su origen (decisión de Ricardo, 18/11/2026: al apuntar un gasto
+ *   en Pagos se marca «AMEX» y se elige el concepto). No hay doble conteo: el
+ *   cargo de la tarjeta en el banco es `card_settlement` y no suma. Se excluyen
+ *   las que vienen de una compra de Supermercado, que ya cuentan en su
+ *   concepto de Supermercado;
  * - supermercado → `supermarket_purchases` con ese concepto; las compras sin
  *   concepto van a «Compra» de Casa (el concepto de Casa con ese origen).
  */
@@ -72,7 +76,7 @@ export async function getBalance(
   const byId = new Map(concepts.map((c) => [c.id, c]));
   const linkedBy = (source: LinkSource) =>
     concepts.filter((c) => c.kind === "linked" && c.linkSource === source).map((c) => c.id);
-  const pagosIds = linkedBy("pagos");
+  const pagosIds = concepts.filter((c) => c.kind === "linked").map((c) => c.id);
   const superIds = linkedBy("supermercado");
   // Compras sin concepto → «Compra» de Casa (especificación funcional, 5.5).
   const defaultSuper = ctx.owner === "casa" && superIds.length === 1 ? superIds[0] : null;

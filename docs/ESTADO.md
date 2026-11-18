@@ -122,6 +122,20 @@ y el rol admin. La importación sí está probada contra la base de datos real (
     comentarios, + Concepto) con un script 05 de permisos de escritura;
   - el rol admin y el Balance de Andrea se prueban con `FC_ADMIN_EMAIL` / `FC_ADMIN_PASSWORD`
     en `.env.test.local` (los añade Ricardo).
+- **Amex y Pagos, decidido por Ricardo el 18/11/2026** (cambia la especificación funcional 5.5/5.6):
+  - no hay vínculos automáticos: al apuntar un gasto en el módulo de Pagos se marca la
+    casilla **AMEX** y se elige **concepto** (obligatorio). Se guarda una vez en
+    `amex_expenses` (`wallet = 'amex'` si es Amex; si no, `wallet` = la persona), sale en la
+    lista de la Amex y suma en el Balance de ese concepto;
+  - por eso, en Balances, un gasto de `amex_expenses` con concepto suma en ese concepto
+    enlazado **sea cual sea su origen** (ya aplicado en `lib/data/balance.ts`; sin cambio de
+    cifras porque hoy ninguno tiene concepto). No hay doble conteo: el cargo de la tarjeta en
+    el banco es `card_settlement`;
+  - los 702 gastos de Amex existentes se quedan como están: Ricardo les asignará concepto a
+    mano más adelante;
+  - una compra de Supermercado pagada con Amex **no** crea su gasto en la Amex (sin vínculo
+    automático); `payment_type = 'amex'` es solo la forma de pago. Pendiente de confirmar al
+    empezar la fase 3.
 - **Balances, detalles de la entrega 1:**
   - lo escrito a mano (`andrea_balance`) cuenta en cualquier mes, también futuros, como en
     producción; lo automático, solo hasta el mes en curso;

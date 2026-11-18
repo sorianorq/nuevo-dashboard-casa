@@ -173,7 +173,7 @@ function CellDialog({ row, monthIndex, onClose }: { row: BalanceRow; monthIndex:
           </DialogTitle>
           <DialogDescription>
             {linked
-              ? `Automático desde ${LINK_SOURCE_LABEL[row.linkSource ?? "movimientos"].toLowerCase()}. Un importe escrito a mano manda sobre él.`
+              ? `Automático desde ${LINK_SOURCE_LABEL[row.linkSource ?? "movimientos"].toLowerCase()}${row.linkSource === "pagos" ? "" : " y los gastos de Pagos o Amex con este concepto"}. Un importe escrito a mano manda sobre él.`
               : "Concepto manual: el importe se escribe a mano."}
           </DialogDescription>
         </DialogHeader>
