@@ -9,8 +9,8 @@ de `CLAUDE.md` y `docs/ESPECIFICACION.md`. Actualízalo al terminar cada paso.
 ## 1. Situación en una frase
 
 La **fase 1 está programada** (Pasos 0–3) y los **permisos por Balance ya están
-aplicados** (script 04 ejecutado por Ricardo el 18/11/2026). Falta que Ricardo compare los
-totales con la consulta de comprobación y probar el guardado real.
+aplicados** (script 04 ejecutado por Ricardo el 18/11/2026). El Resumen de Casa (marzo de 2026)
+coincide con la base de datos completa. Falta probar el guardado real.
 
 ## 2. Hecho
 
@@ -42,8 +42,9 @@ concepto) y el rol admin. Las importaciones no se han probado contra la base de 
 
 1. ~~Ricardo ejecuta el script 04~~ (hecho el 18/11/2026).
 2. ~~Volver a probar con sesión real~~ (hecho; ver apartado 2).
-3. Comparar los totales con `supabase/sql/comprobaciones/resumen_marzo_2026_casa.sql`
-   (lo ejecuta Ricardo; ve todos los datos, sin RLS).
+3. ~~Comparar con `supabase/sql/comprobaciones/resumen_marzo_2026_casa.sql`~~ (hecho el
+   18/11/2026: la consulta 1, sin RLS, coincide al céntimo con la app; lo excluido en marzo
+   son una liquidación de tarjeta en Casa y traspasos internos en Ricardo, sin filas sin Balance).
 4. Probar una importación real con un extracto (Ricardo decide si se guarda).
 5. Fase 2 en adelante: Balances, Presupuesto, Supermercado, American Express, Pagos y el
    alta rápida del ➕ (hoy todas son «Próximamente»).
