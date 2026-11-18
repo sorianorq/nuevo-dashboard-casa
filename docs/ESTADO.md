@@ -282,7 +282,7 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
 - **Resumen · acumulado del año (18/11/2026):** las tarjetas Ingresos, Gastos, Ahorro y Tasa
-  de ahorro llevan en pequeño «Acumulado <año>» de enero al mes elegido (`yearToDate` en
+  de ahorro llevan en pequeño «YTD <año>» (acumulado de enero al mes elegido) (`yearToDate` en
   `lib/calc/summary.ts`, mismas reglas que el mes; tasa = ahorro ÷ ingresos del año). Sale de
   la tendencia de 12 meses (siempre incluye enero..mes). Comprobado: Casa y Ricardo, enero–
   noviembre de 2026 = suma directa en la base de datos.

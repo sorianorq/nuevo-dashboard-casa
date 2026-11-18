@@ -35,7 +35,7 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
   const ytd = yearToDate(summary.trend, ym);
   const ytdNote = (value: string, cls?: string) => (
     <>
-      Acumulado {ym.year}
+      YTD {ym.year}
       <span className="hidden lg:inline">: </span>
       <span className={cn("block lg:inline", cls ?? "font-bold text-foreground")}>{value}</span>
     </>
