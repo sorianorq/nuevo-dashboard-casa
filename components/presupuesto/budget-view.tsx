@@ -37,7 +37,7 @@ export function BudgetView({ tab, month, monthLabel, data }: Props) {
   const budgetTotal = round2(gastos.reduce((s, l) => s + (l.budget ?? 0), 0));
   const spentTotal = round2(gastos.reduce((s, l) => s + (l.spent ?? 0), 0));
   const forecastTotal = data.isCurrentMonth ? round2(gastos.reduce((s, l) => s + (l.forecast ?? 0), 0)) : null;
-  const ratio = budgetTotal > 0 ? spentTotal / budgetTotal : null;
+  const ratio = budgetTotal > 0 && !data.isFuture ? spentTotal / budgetTotal : null;
 
   const copy = () =>
     start(async () => {
