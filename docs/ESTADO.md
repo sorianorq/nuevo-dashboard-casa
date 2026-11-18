@@ -300,6 +300,7 @@ y el rol admin. La importación sí está probada contra la base de datos real (
 ## 6. Cómo probar
 
 - `npm run dev` → http://localhost:3000. Producción local: `npm run build && PORT=3100 npm start`.
+- GitHub CLI: instalado con Homebrew y autenticado localmente (`gh auth status`, 18/11/2026).
 - **Credenciales de prueba:** `.env.test.local` (git lo ignora) con `FC_TEST_EMAIL` y
   `FC_TEST_PASSWORD`. Los valores pueden llevar espacios en los extremos: hay que quitarlos
   al leerlos. Nunca mostrar su contenido.
