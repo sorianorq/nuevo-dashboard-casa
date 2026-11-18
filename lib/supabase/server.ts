@@ -1,6 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 
 /**
  * Cliente de Supabase para el servidor (Server Components, Server Actions,
@@ -9,6 +10,10 @@ import { cookies } from "next/headers";
  */
 export async function createClient() {
   const cookieStore = await cookies();
+  // Datos de cada usuario: nunca se prerenderizan. Además supabase-js usa
+  // la hora actual (caducidad del token), que con Cache Components solo
+  // puede leerse en tiempo de petición.
+  await connection();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
