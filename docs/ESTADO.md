@@ -103,8 +103,12 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    (o, si sale de una compra, lleva a Supermercado). Comprobado sin guardar con la sesión de
    Ricardo: octubre y noviembre de 2026 = suma directa en la base de datos (total, por
    persona, pendiente); filtros; 390 y 1440 px sin errores ni scroll horizontal.
-   **Bloqueada por `supabase/sql/08_conceptos_de_pagos.sql`** (lo ejecuta Ricardo; sin él
-   no se puede apuntar en el Balance del otro). Después: probar alta, edición, borrado y
+   Script 08 ejecutado por Ricardo, pero la API aún no ve la función. Al probar el alta
+   apareció la regla antigua `andrea_concepts_user_id_concept_key` = único (user_id,
+   concept): impide crear «Otros gastos» en Casa (Ricardo ya lo tiene en su Balance).
+   **Bloqueada por `supabase/sql/09_conceptos_unicos_por_balance.sql`** (lo ejecuta
+   Ricardo): pone única (owner, concept) como dice la especificación, quita la antigua y
+   recarga el esquema de la API. La prueba no dejó nada en la base de datos. Después: probar alta, edición, borrado y
    traspasos. Entrega 2: Pagos personales (medio de pago, casilla AMEX, presupuesto).
 8. Fase 5: Presupuesto y el alta rápida del ➕.
 

@@ -16,6 +16,9 @@ async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   } catch (e) {
     console.error(e);
     const message = e instanceof Error ? e.message : "";
+    if (/andrea_concepts_user_id_concept_key/.test(message)) {
+      return { ok: false, error: "Ya tienes un concepto con ese nombre en otro Balance: falta el script 09 (un nombre por Balance)." };
+    }
     if (/row-level security|permission denied/i.test(message)) {
       return { ok: false, error: "Sin permiso para guardar este gasto." };
     }

@@ -34,6 +34,9 @@ async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
     console.error(e);
     const message = e instanceof Error ? e.message : "";
     // RLS sin las políticas del script 05: mensaje claro en vez del de Postgres.
+    if (/andrea_concepts_user_id_concept_key/.test(message)) {
+      return { ok: false, error: "Ya tienes un concepto con ese nombre en otro Balance: falta el script 09 (un nombre por Balance)." };
+    }
     if (/row-level security|permission denied/i.test(message)) {
       return { ok: false, error: "Sin permiso para guardar en este Balance (falta el script 05 de permisos)." };
     }
