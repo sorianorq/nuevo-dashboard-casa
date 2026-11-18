@@ -124,7 +124,23 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    se borraron. Sin errores ni scroll horizontal.
    - «+ Nuevo concepto» no está en el formulario: por la decisión de Ricardo se sugiere uno
      parecido o va a «Otros gastos»; los conceptos se crean en Balances.
-8. Fase 5: Presupuesto y el alta rápida del ➕.
+8. **Fase 5 · Presupuesto y alta rápida.** Presupuesto **programado, sin probar el
+   guardado** (18/11/2026): pestañas Casa | persona (selector admin), mes ‹ › hasta 12
+   meses por delante, gastado / presupuestado de Gastos con % y previsión a fin de mes,
+   partidas por bloque (Gastos, Ahorro, Ingresos) con barra, «quedan X €» y naranja desde el
+   85 %, «Gastado en conceptos sin partida»; tocar una partida → cambiar o quitar el importe
+   y enlace a su origen (movimientos filtrados, Supermercado, Amex o Balances). Botones
+   «+ Partida», «Copiar mes anterior» (solo las que faltan) y «Proponer con histórico».
+   Comprobado sin guardar (Ricardo y admin/Andrea, 390 y 1440 px, sin errores).
+   **Bloqueado por `supabase/sql/10_permisos_presupuesto.sql`** (lo ejecuta Ricardo).
+   - Gastado de una partida = «Real» de Balances en ese mes (mismo cálculo).
+   - Previsión: solo en el mes en curso; lo automático se proyecta al ritmo de los días,
+     lo escrito a mano (fijos) no.
+   - Propuesta: media de los 6 meses cerrados anteriores (contando los meses sin gasto),
+     sin los meses que pasan del doble de la mediana, redondeada al euro. Salen marcadas
+     por defecto solo las que no tienen partida y tuvieron gasto en 3 o más meses.
+   - `monthly_budgets` no tiene `user_id`; en `category_group` se guarda el nombre del
+     concepto (columna antigua).
 
 ## 4. Hallazgos en los datos y en la app en producción
 

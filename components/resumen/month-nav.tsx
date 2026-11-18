@@ -10,9 +10,12 @@ export function MonthNav({
   maxYm,
   pathname,
   params,
+  defaultYm,
 }: {
   ym: YearMonth;
   maxYm: YearMonth;
+  /** Mes que se ve sin «?mes=» (por defecto, maxYm). */
+  defaultYm?: YearMonth;
   pathname: string;
   params: Record<string, string>;
 }) {
@@ -22,7 +25,7 @@ export function MonthNav({
 
   const hrefFor = (target: YearMonth) => {
     const qs = new URLSearchParams(params);
-    if (compareYm(target, maxYm) === 0) qs.delete("mes");
+    if (compareYm(target, defaultYm ?? maxYm) === 0) qs.delete("mes");
     else qs.set("mes", ymKey(target));
     const s = qs.toString();
     return s ? `${pathname}?${s}` : pathname;
