@@ -159,26 +159,30 @@ function validRows(rows: unknown): ParsedRow[] {
 }
 
 /**
- * Duplicados: una fila lo es si su import_hash ya existe en la cuenta, si
- * coincide fecha|importe|descripción normalizada con un movimiento guardado
- * (también con la descripción tal como la leía la app anterior), o si se
- * repite dentro del propio archivo.
+ * Duplicados. Las filas idénticas (fecha|importe|descripción normalizada) de un
+ * mismo archivo son movimientos distintos (p. ej. dos transferencias iguales el
+ * mismo día) y se numeran por orden de aparición. La aparición n.º k es
+ * duplicada si su import_hash ya existe en la cuenta o si la cuenta ya tiene al
+ * menos k movimientos con esa clave (también con la descripción tal como la
+ * leía la app anterior). Así, volver a cargar el mismo archivo no duplica nada
+ * y, si solo faltaba una de dos filas iguales, se importa solo esa.
  */
-function classify(accountId: string, rows: ParsedRow[], existing: { hashes: Set<string>; keys: Set<string> }) {
-  const seen = new Set<string>();
+function classify(accountId: string, rows: ParsedRow[], existing: { hashes: Set<string>; keys: Map<string, number> }) {
+  const occurrences = new Map<string, number>();
   return rows.map((r) => {
-    const hash = importHash(accountId, r);
     const key = duplicateKey(r.date, r.amount, r.description);
+    const occurrence = (occurrences.get(key) ?? 0) + 1;
+    occurrences.set(key, occurrence);
+    const hash = importHash(accountId, r, occurrence);
     const legacyKey = r.legacyDescription ? duplicateKey(r.date, r.amount, r.legacyDescription) : null;
-    const inDb = existing.hashes.has(hash) || existing.keys.has(key) || (legacyKey !== null && existing.keys.has(legacyKey));
-    const duplicate: "db" | "file" | null = inDb ? "db" : seen.has(hash) ? "file" : null;
-    seen.add(hash);
+    const saved = Math.max(existing.keys.get(key) ?? 0, legacyKey ? (existing.keys.get(legacyKey) ?? 0) : 0);
+    const duplicate: "db" | null = existing.hashes.has(hash) || occurrence <= saved ? "db" : null;
     return { hash, duplicate };
   });
 }
 
 export type PreviewRow = ParsedRow & {
-  duplicate: "db" | "file" | null;
+  duplicate: "db" | null;
   suggestion: { conceptId: string; source: "exact" | "similar" } | null;
 };
 

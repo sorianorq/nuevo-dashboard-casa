@@ -57,7 +57,7 @@ export async function saveTemplate(ctx: DataContext, accountId: string, t: Impor
 
 /**
  * Lo ya guardado en la cuenta para detectar duplicados: sus import_hash (de
- * cualquier formato) y la clave fecha|importe|descripción normalizada.
+ * cualquier formato) y cuántos hay con cada clave fecha|importe|descripción normalizada.
  */
 export async function existingImportKeys(ctx: DataContext, accountId: string) {
   if (!(await accountBelongsTo(ctx, accountId, ctx.owner))) throw new Error("Cuenta no válida para este Balance.");
@@ -71,10 +71,12 @@ export async function existingImportKeys(ctx: DataContext, accountId: string) {
       .range(a, b),
   );
   const hashes = new Set<string>();
-  const keys = new Set<string>();
+  /** Cuántos movimientos guardados hay con cada clave fecha|importe|descripción. */
+  const keys = new Map<string, number>();
   for (const r of rows) {
     if (r.import_hash) hashes.add(String(r.import_hash));
-    keys.add(duplicateKey(String(r.transaction_date), num(r.amount), String(r.description ?? "")));
+    const key = duplicateKey(String(r.transaction_date), num(r.amount), String(r.description ?? ""));
+    keys.set(key, (keys.get(key) ?? 0) + 1);
   }
   return { hashes, keys };
 }

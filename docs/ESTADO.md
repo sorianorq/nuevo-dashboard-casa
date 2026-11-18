@@ -1,6 +1,6 @@
 # Estado del proyecto · traspaso entre sesiones
 
-Última actualización: 18/11/2026 (permisos aplicados) · último commit de código: `5819a74`.
+Última actualización: 18/11/2026 (permisos aplicados, filas idénticas al importar).
 
 Este documento resume lo hecho, lo pendiente y las decisiones tomadas, para que
 cualquier sesión nueva pueda continuar sin el historial del chat. Léelo después
@@ -50,10 +50,12 @@ concepto) y el rol admin. Las importaciones no se han probado contra la base de 
      Casa correcta: la plantilla guardada encaja; los meses ya guardados salen enteros como
      duplicados (mismo recuento por mes que en la base de datos) y los meses posteriores, como
      nuevos. Las demás cuentas dan casi todo nuevo o ninguna fila válida, como se esperaba.
-   - **Pendiente de decidir:** dos movimientos idénticos en el mismo archivo (misma fecha,
-     importe y descripción; p. ej. dos transferencias iguales el mismo día) dan el mismo
-     `import_hash`, y la app descarta el segundo como «repetido en el archivo». Ha pasado en
-     este extracto con un abono que parece legítimo.
+   - Filas idénticas en un mismo archivo (misma fecha, importe y descripción; p. ej. dos
+     transferencias iguales el mismo día): **Ricardo decidió importarlas todas**. Se numeran
+     por orden de aparición; la 1.ª usa el hash de siempre y las siguientes añaden `|2`, `|3`…
+     La aparición k es duplicada si su hash existe o si la cuenta ya tiene ≥ k movimientos con
+     esa clave. Verificado en vista previa con el extracto real.
+   - Falta: importar de verdad (lo hace Ricardo) y comprobar en la base de datos lo guardado.
 5. Fase 2 en adelante: Balances, Presupuesto, Supermercado, American Express, Pagos y el
    alta rápida del ➕ (hoy todas son «Próximamente»).
 
@@ -94,10 +96,11 @@ concepto) y el rol admin. Las importaciones no se han probado contra la base de 
 - **Importación:**
   - el archivo se lee en el navegador (`lib/import/parse-file.ts`, SheetJS 0.20.3 desde el
     CDN oficial; la de npm tiene CVE);
-  - duplicado = `import_hash` existente **o** clave fecha|importe|descripción normalizada
-    igual a un movimiento ya guardado en la cuenta (también con la lectura «antigua» de los
-    CSV UTF-8 mal decodificados) **o** repetido en el archivo;
-  - hash nuevo = sha256(cuenta|fecha|importe|descripción normalizada), como dice la especificación;
+  - duplicado = `import_hash` existente **o** ya hay en la cuenta tantos movimientos con la
+    clave fecha|importe|descripción normalizada como apariciones lleva el archivo (también con
+    la lectura «antigua» de los CSV UTF-8 mal decodificados);
+  - hash nuevo = sha256(cuenta|fecha|importe|descripción normalizada), como dice la
+    especificación, más `|n` desde la 2.ª fila idéntica del archivo (decisión de Ricardo);
   - plantillas: se leen letras y nombres, y se guardan en **letras** (las entiende producción);
   - concepto sugerido: misma descripción normalizada, o similitud de palabras ≥ 0,6;
   - máximo 3.000 filas por archivo.

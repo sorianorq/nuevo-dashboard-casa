@@ -346,7 +346,7 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
                       <span className="min-w-0">
                         <span className="block truncate">{r.description}</span>
                         <span className="text-xs">
-                          {formatDate(r.date)} · {r.duplicate === "db" ? "ya importado" : "repetido en el archivo"}
+                          {formatDate(r.date)} · ya importado
                         </span>
                       </span>
                       <span className="amount">{formatSignedAmount(r.amount)}</span>
