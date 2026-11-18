@@ -76,7 +76,16 @@ y el rol admin. La importación sí está probada contra la base de datos real (
      el concepto archivado «Prueba Claude (borrar)» en el catálogo de Ricardo (sin importes);
    - pendiente de fase 1: probar guardar concepto, flujo, nueva cuenta o nuevo concepto en
      Movimientos.
-6. Fases 3–5: Supermercado, Pagos (Amex y personales), Presupuesto y el alta rápida del ➕.
+6. **Fase 3 · Supermercado.** Entrega 1 (solo lectura) hecha el 18/11/2026: datos clave del
+   mes (gasto, nº de compras, ticket medio, % vs mes anterior con la regla del apartado 6),
+   gasto por categoría (`catId`) frente a la media de 12 meses, por tienda, evolución de 12
+   meses e historial con el detalle de cada compra. Comprobado: octubre de 2026 = suma
+   directa en la base de datos (total, nº de compras, categorías); 390 y 1440 px sin errores.
+   Falta la entrega 2: nueva compra (fecha, tienda con las habituales primero, forma de pago,
+   cuadrícula de 14 categorías, líneas, total), editar y borrar, y el gasto en la Amex para
+   las pagadas con Amex. Necesita un script 07 de permisos de escritura.
+7. Fases 4–5: Pagos (Amex y personales, con la casilla AMEX), Presupuesto y el alta rápida
+   del ➕.
 
 ## 4. Hallazgos en los datos y en la app en producción
 
@@ -163,6 +172,11 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   - «rellenar año» solo para conceptos manuales: escribe el importe en los 12 meses;
   - las celdas se escriben buscando la fila existente (por `concept_id` o nombre) y
     actualizándola; si no hay, se inserta. No se usa upsert para no depender de índices únicos.
+- **Supermercado:** datos (18/11/2026): 160 compras (dic. 2024 – oct. 2026), 496 líneas, todas
+  con `catId`; ninguna pagada con Amex; ya no hay años «0026». Una compra tiene un total
+  distinto de la suma de sus líneas: el gasto del mes usa el total y el detalle lo avisa. Las
+  medias por categoría usan las líneas. Con Cache Components, la página lee la sesión antes
+  de la hora (`new Date()` necesita un acceso dinámico previo).
 - **Balance de Andrea en producción** (`dashboard-rqs.vercel.app/js/andrea.js`): todo manual.
   Importes de `andrea_balance` por nombre de concepto y mes (en positivo), conceptos fijos en
   el código + `andrea_concepts`; resultado = ingresos − gastos − ahorro; las filas ocultas

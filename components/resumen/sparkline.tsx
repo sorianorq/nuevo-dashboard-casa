@@ -6,10 +6,18 @@ import { formatAmount } from "@/lib/format";
 export type SparkPoint = { key: string; title: string; total: number };
 
 /** Minigráfica de 12 meses (una serie). El mes elegido, en acento pleno. */
-export function Sparkline({ data, label }: { data: SparkPoint[]; label: string }) {
+export function Sparkline({
+  data,
+  label,
+  heightClass = "h-14",
+}: {
+  data: SparkPoint[];
+  label: string;
+  heightClass?: string;
+}) {
   const lastKey = data[data.length - 1]?.key;
   return (
-    <div className="h-14" role="img" aria-label={label}>
+    <div className={heightClass} role="img" aria-label={label}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
           <Tooltip

@@ -63,3 +63,34 @@ export const LINK_SOURCE_LABEL = {
   pagos: "Pagos",
   supermercado: "Supermercado",
 } as const;
+
+/** Categorías de Supermercado (especificación, apartado 5): se agrupa SIEMPRE por catId. */
+export const SUPER_CATEGORIES = [
+  { id: "frutas", name: "Frutas y Verduras" },
+  { id: "carnes", name: "Carnes y Aves" },
+  { id: "pescados", name: "Pescados y Mariscos" },
+  { id: "legumbres", name: "Pasta, legumbres y frutos secos" },
+  { id: "lacteos", name: "Lácteos y Huevos" },
+  { id: "embutidos", name: "Embutidos" },
+  { id: "panaderia", name: "Panadería y Bollería" },
+  { id: "bebidas", name: "Bebidas" },
+  { id: "conservas", name: "Conservas" },
+  { id: "snacks", name: "Snacks y Dulces" },
+  { id: "limpieza", name: "Limpieza" },
+  { id: "higiene", name: "Higiene y Cuidados" },
+  { id: "congelados", name: "Alimentos congelados" },
+  { id: "otros", name: "Otros" },
+] as const;
+export type SuperCategoryId = (typeof SUPER_CATEGORIES)[number]["id"];
+export const SUPER_CATEGORY_NAME: Record<string, string> = Object.fromEntries(
+  SUPER_CATEGORIES.map((c) => [c.id, c.name]),
+);
+
+export const PAYMENT_TYPES = ["tarjeta", "efectivo", "amex", "otros"] as const;
+export type PaymentType = (typeof PAYMENT_TYPES)[number];
+export const PAYMENT_TYPE_LABEL: Record<PaymentType, string> = {
+  tarjeta: "Tarjeta",
+  efectivo: "Efectivo",
+  amex: "Amex",
+  otros: "Otros",
+};
