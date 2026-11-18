@@ -1,7 +1,16 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { isOwner, isPerson, OWNER_LABEL, type Owner } from "@/lib/balance";
-import { isOthersName, isPaidBy, OTHERS_NAME, round2, type PaidBy } from "@/lib/calc/pagos";
+import {
+  isOthersName,
+  isPaidBy,
+  OTHERS_NAME,
+  PAYMENT_METHOD_KINDS,
+  round2,
+  type PaidBy,
+  type PaymentMethod,
+  type PaymentMethodKind,
+} from "@/lib/calc/pagos";
 import { getDataContext, type DataContext } from "./session";
 import { fetchAll } from "./query";
 import { listPagosConcepts } from "./pagos";
@@ -215,4 +224,33 @@ export async function markTransferred(ids: string[]): Promise<number> {
     .select("id");
   if (error) throw dbError(error);
   return data?.length ?? 0;
+}
+
+/** «+ Nuevo» medio de pago de la persona de la sesión (o la elegida por admin). */
+export async function createPaymentMethod(name: string, kind: PaymentMethodKind): Promise<PaymentMethod> {
+  const ctx = await getDataContext();
+  const person = ctx.person;
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (!clean) throw new Error("Escribe el nombre del medio de pago.");
+  if (clean.length > 40) throw new Error("El nombre es demasiado largo.");
+  if (!PAYMENT_METHOD_KINDS.includes(kind)) throw new Error("Tipo no válido.");
+  const supabase = await createClient();
+  const { data: same, error: sameError } = await supabase
+    .from("payment_methods")
+    .select("id, name, kind, archived, sort_order")
+    .eq("owner", person);
+  if (sameError) throw dbError(sameError);
+  const dup = (same ?? []).find((m) => String(m.name).toLowerCase() === clean.toLowerCase());
+  if (dup) {
+    if (dup.archived) throw new Error("Ya existe con ese nombre, archivado.");
+    throw new Error("Ya tienes un medio de pago con ese nombre.");
+  }
+  const sortOrder = (same ?? []).reduce((m, r) => Math.max(m, Number(r.sort_order) || 0), 0) + 10;
+  const { data, error } = await supabase
+    .from("payment_methods")
+    .insert({ owner: person, name: clean, kind, sort_order: sortOrder, archived: false })
+    .select("id")
+    .single();
+  if (error) throw dbError(error);
+  return { id: String(data.id), name: clean, kind, archived: false };
 }

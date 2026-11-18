@@ -1,7 +1,8 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { deletePayment, markTransferred, savePayment, type PaymentInput } from "@/lib/data";
+import { createPaymentMethod, deletePayment, markTransferred, savePayment, type PaymentInput } from "@/lib/data";
+import type { PaymentMethodKind } from "@/lib/calc/pagos";
 
 /**
  * Acciones de Pagos. El usuario y su rol salen siempre de la sesión en el
@@ -69,5 +70,13 @@ export async function markTransferredAction(ids: string[]) {
     const count = await markTransferred(ids);
     refresh();
     return { count };
+  });
+}
+
+export async function newPaymentMethodAction(name: string, kind: PaymentMethodKind) {
+  return run(async () => {
+    if (typeof name !== "string" || typeof kind !== "string") throw new Error("Datos no válidos.");
+    const method = await createPaymentMethod(name, kind);
+    return { method };
   });
 }

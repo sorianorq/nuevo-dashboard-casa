@@ -110,7 +110,20 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    → no queda el gasto. Sin errores.
    - Script 09: la base de datos tenía aún la regla única antigua (user_id, concept); ahora
      es (owner, concept), como en la especificación.
-   Siguiente: entrega 2: Pagos personales (medio de pago, casilla AMEX, presupuesto).
+   Entrega 2 (Pagos de la persona) **hecha y probada** el 18/11/2026: título con su nombre
+   (admin: la elegida en el selector), gastado en el mes frente a presupuesto (barra; hoy
+   `monthly_budgets` está vacía → «sin presupuesto»), barras por concepto, filtros (buscar,
+   medio de pago, concepto), lista por día / tabla, y alta con la casilla **«Pagado con
+   AMEX»** (va a la lista de la Amex, con «Pendiente de traspaso») o un medio de pago suyo
+   («+ Nuevo» crea uno en `payment_methods`). Balance: Casa o el suyo; concepto sugerido o
+   «Otros gastos». La lista son sus pagos (`wallet` = la persona) más lo que pagó con la Amex,
+   sin las compras del Súper (cuentan en Supermercado). Comprobado: noviembre de 2026,
+   Ricardo 5 gastos / 392,45 € y Andrea (admin) 16 / 719,08 € = base de datos. Guardado
+   probado con la sesión de Ricardo (390 px alta con medio de pago nuevo, 1440 px pasar a
+   AMEX con pendiente → aparece en la Amex, borrar); el gasto y el medio de pago de prueba
+   se borraron. Sin errores ni scroll horizontal.
+   - «+ Nuevo concepto» no está en el formulario: por la decisión de Ricardo se sugiere uno
+     parecido o va a «Otros gastos»; los conceptos se crean en Balances.
 8. Fase 5: Presupuesto y el alta rápida del ➕.
 
 ## 4. Hallazgos en los datos y en la app en producción

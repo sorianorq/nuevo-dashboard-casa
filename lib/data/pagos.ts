@@ -1,7 +1,15 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { isOwner, OWNERS } from "@/lib/balance";
-import { isPaidBy, round2, type ConceptRef, type PagosConcept, type PaidBy, type Payment } from "@/lib/calc/pagos";
+import { isOwner, OWNERS, type Person } from "@/lib/balance";
+import {
+  isPaidBy,
+  round2,
+  type ConceptRef,
+  type PagosConcept,
+  type PaidBy,
+  type Payment,
+  type PaymentMethod,
+} from "@/lib/calc/pagos";
 import { monthEnd, monthStart, type YearMonth } from "@/lib/months";
 import { getDataContext, type DataContext } from "./session";
 import { fetchAll, num } from "./query";
@@ -164,6 +172,118 @@ export async function getAmex(ym: YearMonth): Promise<AmexData> {
     spent: round2(month.reduce((s, p) => s + p.amount, 0)),
     pendingTotal: round2(pending.reduce((s, p) => s + p.amount, 0)),
     byPerson,
+    concepts,
+    conceptsComplete: complete,
+    refs: await conceptRefs(ctx, concepts, ids),
+    history,
+  };
+}
+
+export type ConceptSpend = { key: string; conceptId: string | null; amount: number; budget: number | null };
+
+export type PersonalData = {
+  person: Person;
+  /** Gastos de la persona en el mes (con sus medios de pago o con la Amex). */
+  month: Payment[];
+  spent: number;
+  /** Presupuesto del mes de sus conceptos de Pagos (null = sin presupuesto). */
+  budget: number | null;
+  /** Gastado en sus conceptos con presupuesto (lo que se compara con él). */
+  spentBudgeted: number;
+  byConcept: ConceptSpend[];
+  methods: PaymentMethod[];
+  concepts: PagosConcept[];
+  conceptsComplete: boolean;
+  refs: Record<string, ConceptRef>;
+  history: { description: string; conceptId: string; date: string }[];
+};
+
+/** Medios de pago de una persona (los archivados solo si se usan). */
+async function paymentMethods(person: Person): Promise<PaymentMethod[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("payment_methods")
+    .select("id, owner, name, kind, sort_order, archived")
+    .eq("owner", person)
+    .order("sort_order", { ascending: true })
+    .order("name");
+  if (error) throw dbError(error);
+  return (data ?? []).map((r) => ({
+    id: String(r.id),
+    name: String(r.name),
+    kind: r.kind === "tarjeta" || r.kind === "efectivo" ? r.kind : "otro",
+    archived: r.archived === true,
+  }));
+}
+
+/**
+ * Pagos de una persona (Pagos · <persona>): sus pagos con tarjeta, efectivo…
+ * (`wallet` = la persona) y los que pagó con la Amex. Las compras del Súper
+ * pagadas con Amex no entran: cuentan en Supermercado.
+ */
+export async function getPersonalPayments(ctx: DataContext, ym: YearMonth): Promise<PersonalData> {
+  const person = ctx.person;
+  if (!ctx.allowedOwners.includes(person)) throw new Error("Balance no permitido para este usuario");
+  const supabase = await createClient();
+  const [rows, methods, { concepts, complete }, history, budgets] = await Promise.all([
+    fetchAll((a, b) =>
+      supabase
+        .from("amex_expenses")
+        .select(COLUMNS)
+        .or(`wallet.eq.${person},and(wallet.eq.amex,paid_by.eq.${person})`)
+        .is("purchase_id", null)
+        .gte("expense_date", monthStart(ym))
+        .lte("expense_date", monthEnd(ym))
+        .order("id")
+        .range(a, b),
+    ),
+    paymentMethods(person),
+    listPagosConcepts(ctx),
+    suggestionHistory(),
+    fetchAll((a, b) =>
+      supabase
+        .from("monthly_budgets")
+        .select("id, concept_id, budget_amount")
+        .eq("owner", person)
+        .eq("year", ym.year)
+        .eq("month", ym.month)
+        .order("id")
+        .range(a, b),
+    ),
+  ]);
+
+  const month = rows
+    .map(toPayment)
+    .sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description, "es"));
+
+  const own = new Set(concepts.filter((c) => c.owner === person).map((c) => c.id));
+  const budgetOf = new Map<string, number>();
+  for (const b of budgets) {
+    const id = b.concept_id ? String(b.concept_id) : null;
+    if (id && own.has(id)) budgetOf.set(id, round2((budgetOf.get(id) ?? 0) + num(b.budget_amount)));
+  }
+
+  const spend = new Map<string, ConceptSpend>();
+  for (const p of month) {
+    const key = p.conceptId ?? "__none";
+    const s = spend.get(key) ?? { key, conceptId: p.conceptId, amount: 0, budget: p.conceptId ? (budgetOf.get(p.conceptId) ?? null) : null };
+    s.amount = round2(s.amount + p.amount);
+    spend.set(key, s);
+  }
+  for (const [id, budget] of budgetOf) if (!spend.has(id)) spend.set(id, { key: id, conceptId: id, amount: 0, budget });
+
+  const budget = budgetOf.size ? round2([...budgetOf.values()].reduce((s, v) => s + v, 0)) : null;
+  const spentBudgeted = round2(month.filter((p) => p.conceptId && budgetOf.has(p.conceptId)).reduce((s, p) => s + p.amount, 0));
+  const ids = month.map((p) => p.conceptId).filter((id): id is string => id !== null);
+
+  return {
+    person,
+    month,
+    spent: round2(month.reduce((s, p) => s + p.amount, 0)),
+    budget,
+    spentBudgeted,
+    byConcept: [...spend.values()].sort((a, b) => b.amount - a.amount || (b.budget ?? 0) - (a.budget ?? 0)),
+    methods,
     concepts,
     conceptsComplete: complete,
     refs: await conceptRefs(ctx, concepts, ids),

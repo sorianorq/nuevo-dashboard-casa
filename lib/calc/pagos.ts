@@ -32,6 +32,13 @@ export type Payment = {
   paymentMethodId: string | null;
 };
 
+export type PaymentMethodKind = "tarjeta" | "efectivo" | "otro";
+export const PAYMENT_METHOD_KINDS: PaymentMethodKind[] = ["tarjeta", "efectivo", "otro"];
+export const PAYMENT_METHOD_KIND_LABEL: Record<PaymentMethodKind, string> = { tarjeta: "Tarjeta", efectivo: "Efectivo", otro: "Otro" };
+
+/** Medio de pago de una persona (`payment_methods`). */
+export type PaymentMethod = { id: string; name: string; kind: PaymentMethodKind; archived: boolean };
+
 export type ConceptRef = { owner: Owner; name: string };
 
 /** Nombre de «Otros gastos» (el concepto por defecto de cada Balance). */
