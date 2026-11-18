@@ -1,15 +1,15 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import {
-  monthlyFlows,
   savingsRateDeltaPoints,
-  spendByConcept,
   supermarketSummary,
   round2,
   type MonthFlow,
   type SupermarketSummary,
 } from "@/lib/calc/summary";
-import { addMonths, monthEnd, monthStart, monthsEndingAt, type YearMonth } from "@/lib/months";
+import type { BalanceRow } from "@/lib/calc/balance";
+import { addMonths, monthEnd, monthStart, monthsEndingAt, ymOf, type YearMonth } from "@/lib/months";
+import { getBalance, type BalanceData } from "./balance";
 import { assertOwner, type DataContext } from "./session";
 import { fetchAll, num } from "./query";
 
@@ -35,7 +35,10 @@ export type Summary = {
 
 /**
  * Datos del Resumen para el Balance del contexto (Casa o persona).
- * Ingresos/gastos: transactions con flow='normal' del Balance.
+ * Ingresos, gastos, gráfico y gasto por concepto salen de la hoja de
+ * Balances («Real»), igual que en Balances (decisión de Ricardo, 18/11/2026;
+ * antes: todos los movimientos del banco, tuvieran concepto o no).
+ * Ahorro = ingresos − gastos (lo invertido cuenta como ahorro).
  * Supermercado y Amex: compartidos (los ven todos los roles).
  */
 export async function getSummary(ctx: DataContext, ym: YearMonth, today: string): Promise<Summary> {
@@ -43,40 +46,18 @@ export async function getSummary(ctx: DataContext, ym: YearMonth, today: string)
   const supabase = await createClient();
 
   const trendMonths = monthsEndingAt(ym, 12);
-  const from = monthStart(trendMonths[0]);
   const to = monthEnd(ym);
   const superFrom = monthStart(addMonths(ym, -12));
 
-  const [tx, concepts, budgets, purchases, firstPurchase, amexMonth, amexPending] = await Promise.all([
-    fetchAll((a, b) =>
-      supabase
-        .from("transactions")
-        .select("id, transaction_date, amount, concept_id")
-        .eq("owner", ctx.owner)
-        .eq("flow", "normal")
-        .gte("transaction_date", from)
-        .lte("transaction_date", to)
-        .order("id")
-        .range(a, b),
-    ),
-    fetchAll((a, b) =>
-      supabase
-        .from("andrea_concepts")
-        .select("id, concept, parent_id")
-        .eq("owner", ctx.owner)
-        .order("id")
-        .range(a, b),
-    ),
-    fetchAll((a, b) =>
-      supabase
-        .from("monthly_budgets")
-        .select("id, concept_id, budget_amount")
-        .eq("owner", ctx.owner)
-        .eq("year", ym.year)
-        .eq("month", ym.month)
-        .order("id")
-        .range(a, b),
-    ),
+  // Hojas de Balances de los años del gráfico (12 meses: uno o dos años).
+  const nowYm = ymOf(today);
+  const years = [...new Set(trendMonths.map((m) => m.year))];
+  const sheetsPromise = Promise.all(
+    years.map((y) => getBalance(ctx, y, y < nowYm.year ? 12 : y === nowYm.year ? nowYm.month : 0)),
+  );
+
+  const [sheets, purchases, firstPurchase, amexMonth, amexPending] = await Promise.all([
+    sheetsPromise,
     fetchAll((a, b) =>
       supabase
         .from("supermarket_purchases")
@@ -114,33 +95,37 @@ export async function getSummary(ctx: DataContext, ym: YearMonth, today: string)
   ]);
   if (firstPurchase.error) throw new Error(`Error de base de datos: ${firstPurchase.error.message}`);
 
-  const txRows = tx.map((r) => ({
-    transaction_date: String(r.transaction_date),
-    amount: num(r.amount),
-    concept_id: (r.concept_id as string | null) ?? null,
-  }));
+  const sheetOf = new Map<number, BalanceData>(years.map((y, i) => [y, sheets[i]]));
+  const blockReal = (sheet: BalanceData | undefined, section: "ingresos" | "gastos", month: number) =>
+    sheet?.blocks.find((bl) => bl.section === section)?.total.real[month - 1] ?? 0;
 
-  const trend = monthlyFlows(txRows, trendMonths);
+  const trend: MonthFlow[] = trendMonths.map((m) => {
+    const sheet = sheetOf.get(m.year);
+    const income = round2(blockReal(sheet, "ingresos", m.month));
+    const expenses = round2(blockReal(sheet, "gastos", m.month));
+    const savings = round2(income - expenses);
+    return { ym: m, income, expenses, savings, savingsRate: income > 0 ? savings / income : null };
+  });
   const current = trend[trend.length - 1];
   const previous = trend[trend.length - 2];
 
-  const budgetMap = new Map<string, number>();
-  for (const b of budgets) {
-    if (b.concept_id) budgetMap.set(String(b.concept_id), num(b.budget_amount));
-  }
-
-  const conceptById = new Map(
-    concepts.map((c) => [String(c.id), { name: String(c.concept), parentId: (c.parent_id as string | null) ?? null }]),
+  // Gasto por concepto del mes: filas de Gastos de la hoja (con su presupuesto).
+  const i = ym.month - 1;
+  const gastos = sheetOf.get(ym.year)?.blocks.find((bl) => bl.section === "gastos");
+  type Leaf = { row: BalanceRow; parentName: string | null };
+  const leaves: Leaf[] = (gastos?.rows ?? []).flatMap((r): Leaf[] =>
+    r.kind === "subtotal" ? r.children.map((c) => ({ row: c, parentName: r.name })) : [{ row: r, parentName: null }],
   );
-  const byConcept = spendByConcept(txRows, ym, budgetMap).map((row) => {
-    const concept = row.conceptId ? conceptById.get(row.conceptId) : undefined;
-    const parent = concept?.parentId ? conceptById.get(concept.parentId) : undefined;
-    return {
-      ...row,
-      name: row.conceptId ? (concept?.name ?? "Concepto desconocido") : "Sin concepto",
-      parentName: parent?.name ?? null,
-    };
-  });
+  const byConcept: ConceptSpendRow[] = leaves
+    .map(({ row, parentName }) => ({
+      conceptId: row.id,
+      name: row.name,
+      parentName,
+      amount: round2(row.real[i] ?? 0),
+      budget: row.budget[i],
+    }))
+    .filter((r) => Math.abs(r.amount) >= 0.005 || r.budget !== null)
+    .sort((x, y) => y.amount - x.amount || x.name.localeCompare(y.name, "es"));
 
   const supermarket = supermarketSummary(
     purchases.map((p) => ({ purchase_date: String(p.purchase_date), total: num(p.total) })),

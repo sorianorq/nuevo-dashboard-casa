@@ -281,11 +281,17 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Resumen sale de Balances, decidido por Ricardo el 18/11/2026** (antes: todos los
+  movimientos del banco del Balance, con o sin concepto, y Andrea salía a 0): tarjetas, YTD,
+  gráfico de 12 meses y gasto por concepto = hoja de Balances «Real» del Balance elegido
+  (`getBalance` en `lib/data/summary.ts`). Ingresos = Total ingresos; Gastos = Total gastos;
+  **Ahorro = Ingresos − Gastos** (lo invertido cuenta como ahorro); tasa = ahorro ÷ ingresos.
+  Los movimientos sin concepto no cuentan hasta que se les asigna uno. Supermercado y Amex no
+  cambian. Comprobado (Casa, Ricardo, Andrea): YTD = suma enero–noviembre de Balances.
 - **Resumen · acumulado del año (18/11/2026):** las tarjetas Ingresos, Gastos, Ahorro y Tasa
   de ahorro llevan en pequeño «YTD <año>» (acumulado de enero al mes elegido) (`yearToDate` en
   `lib/calc/summary.ts`, mismas reglas que el mes; tasa = ahorro ÷ ingresos del año). Sale de
-  la tendencia de 12 meses (siempre incluye enero..mes). Comprobado: Casa y Ricardo, enero–
-  noviembre de 2026 = suma directa en la base de datos.
+  la tendencia de 12 meses (siempre incluye enero..mes).
 - **Sin grupo «Total ingresos» (18/11/2026, decisión de Ricardo):** duplicaba el total del
   bloque. Quitado en Casa, Ricardo y Andrea con `fc_delete_concept`; sus conceptos quedan
   sueltos en Ingresos, en el mismo orden y con todo lo que tenían.
