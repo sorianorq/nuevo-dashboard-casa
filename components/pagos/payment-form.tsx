@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { parseAmount } from "@/components/balances/balance-editor";
-import { OWNER_LABEL, type Owner, type Person } from "@/lib/balance";
+import { isPerson, OWNER_LABEL, OWNERS, type Owner, type Person } from "@/lib/balance";
 import {
   isOthersName,
   OTHERS_NAME,
-  PAID_BY_LABEL,
   PAYMENT_METHOD_KIND_LABEL,
   PAYMENT_METHOD_KINDS,
   type PagosConcept,
@@ -28,11 +27,11 @@ import {
 
 export type PaymentFormProps = {
   /**
-   * amex: pantalla American Express (siempre con Amex, se elige quién pagó).
-   * personal: Pagos de la persona (paga ella; casilla «Pagado con AMEX» o medio de pago).
+   * Solo cambia el valor inicial de la casilla Amex en un gasto nuevo:
+   * amex (lista de la Amex) = marcada; personal (➕, Movimientos) = sin marcar.
    */
   mode?: "amex" | "personal";
-  /** Solo personal: medios de pago de la persona. */
+  /** Medios de pago de quien apunta (para los gastos sin Amex). */
   methods?: PaymentMethod[];
   /** null = gasto nuevo. */
   payment: Payment | null;
@@ -44,7 +43,7 @@ export type PaymentFormProps = {
   me: Person;
   /** Balances visibles para el rol. */
   visibleOwners: Owner[];
-  /** Balance de un gasto nuevo (por defecto, el de quien pagó). */
+  /** Balance de un gasto nuevo (por defecto, el de quien apunta). */
   defaultOwner?: Owner;
   today: string;
   /** Tras guardar o borrar. */
@@ -62,9 +61,10 @@ const toInput = (v: number) =>
   });
 
 /**
- * Formulario de gasto de Pagos · American Express: importe, fecha,
- * descripción, pagado por, Balance (Casa o el de quien pagó), concepto
- * (sugerido por gastos parecidos; si no, «Otros gastos»), pendiente y comentario.
+ * Formulario de gasto apuntado a mano: importe, fecha, descripción, Balance
+ * (Casa, Ricardo o Andrea), concepto (sugerido por gastos parecidos; si no,
+ * «Otros gastos»), casilla Amex (o medio de pago), pendiente y comentario.
+ * El importe suma en el Balance elegido y, con Amex, sale en la lista de la Amex.
  */
 export function PaymentForm(props: PaymentFormProps) {
   const {
@@ -80,7 +80,6 @@ export function PaymentForm(props: PaymentFormProps) {
     idPrefix,
   } = props;
   const mode = props.mode ?? "amex";
-  const personal = mode === "personal";
   const editing = payment !== null;
   const suggest = useMemo(() => buildSuggester(history), [history]);
   const byId = useMemo(
@@ -92,21 +91,25 @@ export function PaymentForm(props: PaymentFormProps) {
     concepts.find(
       (c) => c.owner === owner && !c.archived && isOthersName(c.name),
     )?.id ?? null;
-  const defaultOwner = (paidBy: PaidBy): Owner =>
-    paidBy === "otros" ? "casa" : paidBy;
+  // Balances a los que se puede apuntar: todos con el script 08; si no, los visibles.
+  const owners: Owner[] = OWNERS.filter(
+    (o) => conceptsComplete || visibleOwners.includes(o),
+  ).sort((x, y) => ["casa", "ricardo", "andrea"].indexOf(x) - ["casa", "ricardo", "andrea"].indexOf(y));
 
-  const initialPaidBy: PaidBy = payment?.paidBy ?? me;
   const initialConcept = payment?.conceptId
     ? byId.get(payment.conceptId)
     : undefined;
   const initialOwner: Owner =
     initialConcept?.owner ??
-    (!payment && props.defaultOwner ? props.defaultOwner : defaultOwner(initialPaidBy));
+    (payment
+      ? payment.paidBy === "otros" || payment.paidBy === null
+        ? "casa"
+        : payment.paidBy
+      : (props.defaultOwner ?? me));
 
   const [amount, setAmount] = useState(payment ? toInput(payment.amount) : "");
   const [date, setDate] = useState(payment?.date ?? today);
   const [description, setDescription] = useState(payment?.description ?? "");
-  const [paidBy, setPaidBy] = useState<PaidBy>(initialPaidBy);
   const [owner, setOwner] = useState<Owner>(initialOwner);
   const [conceptId, setConceptId] = useState<string | null>(
     initialConcept ? initialConcept.id : othersOf(initialOwner),
@@ -119,32 +122,39 @@ export function PaymentForm(props: PaymentFormProps) {
   const [pendingTouched, setPendingTouched] = useState(editing);
   const [comment, setComment] = useState(payment?.comment ?? "");
   const [amex, setAmex] = useState(
-    personal ? payment?.wallet === "amex" : true,
+    payment ? payment.wallet === "amex" : mode === "amex",
   );
   const [methods, setMethods] = useState<PaymentMethod[]>(props.methods ?? []);
   const activeMethods = methods.filter(
     (m) => !m.archived || m.id === payment?.paymentMethodId,
   );
   const [methodId, setMethodId] = useState<string | null>(
-    payment?.paymentMethodId ??
-      (personal ? (activeMethods[0]?.id ?? null) : null),
+    payment?.paymentMethodId ?? activeMethods[0]?.id ?? null,
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, start] = useTransition();
 
-  /** Recoloca Balance y concepto tras cambiar descripción, pagador o Balance. */
-  const settle = (next: {
-    description: string;
-    paidBy: PaidBy;
-    owner: Owner;
-    ownerChosen: boolean;
-  }) => {
+  /**
+   * Quién consta como pagador: con Amex, la persona del Balance (en Casa, el
+   * que ya tenía o quien apunta); sin Amex, el dueño del medio de pago.
+   */
+  const paidBy: PaidBy = amex
+    ? isPerson(owner)
+      ? owner
+      : payment?.wallet === "amex" && payment.paidBy
+        ? payment.paidBy
+        : me
+    : payment && payment.wallet !== "amex" && isPerson(payment.paidBy)
+      ? payment.paidBy
+      : me;
+
+  /** Recoloca Balance y concepto tras cambiar la descripción o el Balance. */
+  const settle = (next: { description: string; owner: Owner; ownerChosen: boolean }) => {
     let o = next.owner;
     if (!conceptTouched) {
       const s = next.description.trim() ? suggest(next.description) : null;
       const sc = s ? byId.get(s.conceptId) : undefined;
-      const fits =
-        sc && !sc.archived && (sc.owner === "casa" || sc.owner === next.paidBy);
+      const fits = sc && !sc.archived && owners.includes(sc.owner);
       if (fits && (!next.ownerChosen || sc.owner === o)) {
         o = sc.owner;
         setConceptId(sc.id);
@@ -218,9 +228,6 @@ export function PaymentForm(props: PaymentFormProps) {
       });
     });
 
-  const people: PaidBy[] =
-    paidBy === "otros" ? ["andrea", "ricardo", "otros"] : ["andrea", "ricardo"];
-  const owners: Owner[] = paidBy === "otros" ? ["casa"] : ["casa", paidBy];
   const label = "text-xs font-bold text-muted-foreground";
 
   return (
@@ -272,68 +279,14 @@ export function PaymentForm(props: PaymentFormProps) {
           maxLength={120}
           onChange={(e) => {
             setDescription(e.target.value);
-            settle({
-              description: e.target.value,
-              paidBy,
-              owner,
-              ownerChosen: false,
-            });
+            settle({ description: e.target.value, owner, ownerChosen: false });
           }}
           className="h-11"
         />
       </div>
 
-      {personal ? (
-        <PaymentMeans
-          amex={amex}
-          onAmex={setAmex}
-          methods={activeMethods}
-          methodId={methodId}
-          onMethod={setMethodId}
-          onCreated={(m) => {
-            setMethods((prev) => [...prev, m]);
-            setMethodId(m.id);
-          }}
-          idPrefix={idPrefix}
-          person={me}
-        />
-      ) : (
-        <fieldset className="space-y-1.5">
-          <legend className={label}>Pagado por</legend>
-          <div className="flex flex-wrap gap-2">
-            {people.map((p) => (
-              <Chip
-                key={p}
-                active={paidBy === p}
-                className="min-w-24"
-                onClick={() => {
-                  if (p === paidBy) return;
-                  setPaidBy(p);
-                  const nextOwner: Owner =
-                    owner === "casa" || p === "otros" ? "casa" : p;
-                  settle({
-                    description,
-                    paidBy: p,
-                    owner: nextOwner,
-                    ownerChosen: owner === "casa",
-                  });
-                }}
-              >
-                {PAID_BY_LABEL[p]}
-              </Chip>
-            ))}
-          </div>
-          {paidBy === "otros" && (
-            <p className="text-xs text-muted-foreground">
-              «Otros» solo existe en gastos antiguos; los nuevos los paga Andrea
-              o Ricardo.
-            </p>
-          )}
-        </fieldset>
-      )}
-
       <fieldset className="space-y-1.5">
-        <legend className={label}>Cuenta en el Balance de</legend>
+        <legend className={label}>Balance</legend>
         <div className="flex flex-wrap gap-2">
           {owners.map((o) => (
             <Chip
@@ -342,7 +295,7 @@ export function PaymentForm(props: PaymentFormProps) {
               className="min-w-24"
               onClick={() => {
                 if (o === owner) return;
-                settle({ description, paidBy, owner: o, ownerChosen: true });
+                settle({ description, owner: o, ownerChosen: true });
               }}
             >
               {OWNER_LABEL[o]}
@@ -405,6 +358,20 @@ export function PaymentForm(props: PaymentFormProps) {
           </p>
         )}
       </fieldset>
+
+      <PaymentMeans
+        amex={amex}
+        onAmex={setAmex}
+        methods={activeMethods}
+        methodId={methodId}
+        onMethod={setMethodId}
+        onCreated={(m) => {
+          setMethods((prev) => [...prev, m]);
+          setMethodId(m.id);
+        }}
+        idPrefix={idPrefix}
+        person={paidBy === "otros" ? me : paidBy}
+      />
 
       {amex && (
         <label className="flex min-h-11 items-center gap-3 text-sm font-semibold">
@@ -525,9 +492,9 @@ function PaymentMeans({
           className="size-5 accent-brand"
         />
         <span>
-          Pagado con AMEX
+          Amex
           <span className="block text-xs font-normal text-muted-foreground">
-            Sale también en la lista de la American Express.
+            Márcala si se pagó con la American Express: sale también en su lista.
           </span>
         </span>
       </label>

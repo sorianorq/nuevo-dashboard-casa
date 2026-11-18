@@ -23,7 +23,6 @@ import { parseAmount } from "@/components/balances/balance-editor";
 import { removePurchase, savePurchase } from "@/app/(app)/supermercado/actions";
 
 type PaidBy = Person;
-const PAID_BY_LABEL: Record<PaidBy, string> = { andrea: "Andrea", ricardo: "Ricardo" };
 const PAYMENTS: PaymentType[] = ["tarjeta", "efectivo", "amex", "otros"];
 const SHORT: Record<string, string> = {
   frutas: "Frutas",
@@ -111,7 +110,8 @@ function PurchaseForm({
   const [payment, setPayment] = useState<PaymentType>(
     purchase?.payment && (PAYMENTS as string[]).includes(purchase.payment) ? (purchase.payment as PaymentType) : "tarjeta",
   );
-  const [paidBy, setPaidBy] = useState<PaidBy>(purchase?.amexPaidBy === "andrea" || purchase?.amexPaidBy === "ricardo" ? purchase.amexPaidBy : me);
+  // Sin selector: quien apunta (las compras antiguas conservan el suyo).
+  const [paidBy] = useState<PaidBy>(purchase?.amexPaidBy === "andrea" || purchase?.amexPaidBy === "ricardo" ? purchase.amexPaidBy : me);
   const [lines, setLines] = useState<{ catId: string; amount: number }[]>(() => {
     const m = new Map<string, number>();
     for (const l of purchase?.lines ?? []) m.set(l.catId, Math.round(((m.get(l.catId) ?? 0) + l.amount) * 100) / 100);
@@ -232,21 +232,6 @@ function PurchaseForm({
             {payment === "amex" && (
               <div className="space-y-1.5 pt-1">
                 <p className="text-xs font-semibold text-brand">Se añadirá también en Movimientos · Amex (Casa › Compra).</p>
-                <label htmlFor="p-paidby" className="text-xs font-bold text-muted-foreground">
-                  Pagado por
-                </label>
-                <select
-                  id="p-paidby"
-                  value={paidBy}
-                  onChange={(e) => setPaidBy(e.target.value as PaidBy)}
-                  className="h-11 w-full rounded-xl border bg-surface px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {(Object.keys(PAID_BY_LABEL) as PaidBy[]).map((k) => (
-                    <option key={k} value={k}>
-                      {PAID_BY_LABEL[k]}
-                    </option>
-                  ))}
-                </select>
               </div>
             )}
           </fieldset>

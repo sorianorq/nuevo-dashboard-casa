@@ -52,3 +52,14 @@ export function conceptLabel(ref: ConceptRef | undefined, paidBy: PaidBy | null)
 }
 
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * Balance de un gasto apuntado a mano: el de su concepto; sin concepto, el de
+ * quien pagó. Las compras del Súper y los antiguos «otros», Casa.
+ */
+export function balanceOf(p: Payment, refs: Record<string, ConceptRef>): Owner {
+  const ref = p.conceptId ? refs[p.conceptId] : undefined;
+  if (ref) return ref.owner;
+  if (p.purchaseId || p.paidBy === null || p.paidBy === "otros") return "casa";
+  return p.paidBy;
+}

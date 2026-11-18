@@ -2,11 +2,11 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { isOwner, isPerson, OWNER_LABEL, OWNERS, type Owner, type Person } from "@/lib/balance";
 import {
+  balanceOf,
   isPaidBy,
   round2,
   type ConceptRef,
   type PagosConcept,
-  type PaidBy,
   type Payment,
   type PaymentMethod,
 } from "@/lib/calc/pagos";
@@ -129,7 +129,8 @@ export type AmexData = {
   pending: Payment[];
   spent: number;
   pendingTotal: number;
-  byPerson: Record<PaidBy, number>;
+  /** Gastado en el mes por Balance (el del concepto; sin concepto, el de quien pagó). */
+  byBalance: Record<Owner, number>;
   concepts: PagosConcept[];
   /** false = falta el script 08 (no se ven los conceptos del otro). */
   conceptsComplete: boolean;
@@ -162,19 +163,22 @@ export async function getAmex(ym: YearMonth): Promise<AmexData> {
   const byDate = (a: Payment, b: Payment) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description, "es");
   const month = monthRows.map(toPayment).sort(byDate);
   const pending = pendingRows.map(toPayment).sort(byDate);
-  const byPerson: Record<PaidBy, number> = { andrea: 0, ricardo: 0, otros: 0 };
-  for (const p of month) byPerson[p.paidBy ?? "otros"] = round2(byPerson[p.paidBy ?? "otros"] + p.amount);
-
   const ids = [...month, ...pending].map((p) => p.conceptId).filter((id): id is string => id !== null);
+  const refs = await conceptRefs(ctx, concepts, ids);
+  const byBalance: Record<Owner, number> = { casa: 0, andrea: 0, ricardo: 0 };
+  for (const p of month) {
+    const o = balanceOf(p, refs);
+    byBalance[o] = round2(byBalance[o] + p.amount);
+  }
   return {
     month,
     pending,
     spent: round2(month.reduce((s, p) => s + p.amount, 0)),
     pendingTotal: round2(pending.reduce((s, p) => s + p.amount, 0)),
-    byPerson,
+    byBalance,
     concepts,
     conceptsComplete: complete,
-    refs: await conceptRefs(ctx, concepts, ids),
+    refs,
     history,
   };
 }
@@ -246,7 +250,7 @@ export async function listManualPayments(ctx: DataContext, ym: YearMonth, owner:
   const methodName = new Map(methodLists.flat().map((m) => [m.id, m.name]));
   const mine = rows
     .map(toPayment)
-    .filter((p) => (p.conceptId ? ids.has(p.conceptId) : (p.paidBy === "otros" || p.paidBy === null ? "casa" : p.paidBy) === owner));
+    .filter((p) => (p.conceptId ? ids.has(p.conceptId) : balanceOf(p, {}) === owner));
   const { concepts } = await listPagosConcepts(ctx);
   const refs = await conceptRefs(ctx, concepts, mine.map((p) => p.conceptId).filter((id): id is string => id !== null));
 

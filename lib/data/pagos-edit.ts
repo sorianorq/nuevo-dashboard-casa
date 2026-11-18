@@ -18,9 +18,13 @@ import { listPagosConcepts } from "./pagos";
 /**
  * Altas y cambios de Pagos (`amex_expenses`). Reglas (decisiones de Ricardo,
  * 18/11/2026):
- *  - paga siempre Andrea o Ricardo («otros» solo se conserva en gastos antiguos);
- *  - el gasto va al Balance de quien pagó o a Casa, aunque quien lo apunta no
- *    vea ese Balance (los nombres de los conceptos salen del script 08);
+ *  - se elige el Balance (Casa, Ricardo o Andrea) y, si se pagó con la Amex,
+ *    la casilla Amex; aunque quien lo apunta no vea ese Balance (los nombres
+ *    de los conceptos salen del script 08). Cambio del 18/11/2026: antes el
+ *    gasto solo podía ir a Casa o al Balance de quien pagó;
+ *  - `paid_by`: con Amex, la persona del Balance (en Casa, quien lo apunta);
+ *    sin Amex, quien lo apunta (dueño del medio de pago). «otros» solo se
+ *    conserva en gastos antiguos;
  *  - el concepto es obligatorio: si no se elige, «Otros gastos» de ese
  *    Balance (en Casa se crea la primera vez si no existe);
  *  - con Amex: `wallet = 'amex'`, sale en la lista de la Amex. Sin Amex:
@@ -34,7 +38,7 @@ export type PaymentInput = {
   amount: number;
   amex: boolean;
   paidBy: PaidBy;
-  /** Balance del gasto: Casa o el de quien pagó. */
+  /** Balance del gasto: Casa, Ricardo o Andrea. */
   owner: Owner;
   /** null = «Otros gastos» de ese Balance. */
   conceptId: string | null;
@@ -128,9 +132,9 @@ export async function savePayment(id: string | null, input: PaymentInput): Promi
   if (input.paidBy === "otros" && !(existing?.paid_by === "otros" && input.amex)) {
     throw new Error("Elige quién pagó: Andrea o Ricardo.");
   }
-  // Balance: Casa o el de quien pagó.
-  if (input.owner !== "casa" && input.owner !== input.paidBy) {
-    throw new Error("El gasto va al Balance de quien pagó o a Casa.");
+  // Con Amex en un Balance personal, consta como pagado por esa persona.
+  if (input.amex && isPerson(input.owner) && input.paidBy !== input.owner) {
+    throw new Error("Un gasto de la Amex en un Balance personal consta como pagado por esa persona.");
   }
 
   let wallet: string;

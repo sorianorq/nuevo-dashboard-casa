@@ -275,6 +275,23 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   Hay copia previa de las tablas de los tres Balances (fuera del repositorio).
 - **El bloque «Ahorro» se llama «Inversión»** en toda la app (decisión de Ricardo); el
   «Ahorro» del Resumen (ingresos − gastos) no cambia.
+- **Gastos a mano: Balance + casilla Amex, decidido por Ricardo el 18/11/2026** (sustituye a
+  «paga Andrea o Ricardo; va a Casa o al Balance de quien pagó»):
+  - el formulario (lista de la Amex, ➕ y editar desde Movimientos) pide **Balance** (Casa ·
+    Ricardo · Andrea), concepto de ese Balance y la casilla **Amex** (marcada por defecto en
+    la lista de la Amex, sin marcar en el ➕). Sin Amex se sigue eligiendo medio de pago (los
+    de quien apunta). Se mantiene «Pendiente de traspaso» y «Marcar como traspasados»;
+  - ya no se pregunta «Pagado por». `paid_by` se rellena solo: con Amex, la persona del
+    Balance (en Casa, quien apunta o el que ya tenía); sin Amex, quien apunta. En
+    Supermercado se quitó también el selector (las compras antiguas conservan el suyo);
+  - la lista de la Amex resume y filtra **por Balance** (el del concepto; sin concepto, el
+    de quien pagó; compras del Súper y antiguos «otros», Casa) — `balanceOf` en
+    `lib/calc/pagos.ts`, la misma regla que usa Movimientos;
+  - Andrea recupera «Otros gastos» (gastos a mano) para poder apuntarle gastos; sus demás
+    variables siguen archivados. Las compras del Súper con Amex siguen saliendo en la Amex;
+  - probado con Ricardo (390 px): alta Amex en Andrea › Otros gastos (pendiente marcado),
+    alta con ➕ sin Amex en Casa con Bankinter, ambos borrados; cifras de la Amex iguales
+    antes y después.
 - **Movimientos sustituye a Pagos, decidido por Ricardo el 18/11/2026** (cambio tras la fase 5;
   sustituye a la pantalla única de Pagos con selector, que duró unas horas):
   - menú: Resumen · Contabilidad (Balances, Presupuesto) · Supermercado · **Movimientos**.

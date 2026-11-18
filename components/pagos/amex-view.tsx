@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatAmount, formatDate, formatDayHeading } from "@/lib/format";
-import { conceptLabel, PAID_BY_LABEL, type PaidBy, type Payment } from "@/lib/calc/pagos";
+import { balanceOf, type Payment } from "@/lib/calc/pagos";
+import { OWNER_LABEL, type Owner } from "@/lib/balance";
 import type { AmexData } from "@/lib/data/pagos";
 import { markTransferredAction } from "@/app/(app)/movimientos/pagos-actions";
 import { PaymentForm, type PaymentFormProps } from "./payment-form";
@@ -34,7 +35,8 @@ export function AmexView({ data, monthLabel, monthNav, ...shared }: Props) {
   const [formKey, setFormKey] = useState(0);
 
   const describe = (p: Payment) =>
-    p.purchaseId && !p.conceptId ? "Supermercado" : conceptLabel(p.conceptId ? data.refs[p.conceptId] : undefined, p.paidBy);
+    p.purchaseId && !p.conceptId ? "Supermercado" : ((p.conceptId && data.refs[p.conceptId]?.name) || "Sin concepto");
+  const balance = (p: Payment) => OWNER_LABEL[balanceOf(p, data.refs)];
 
   return (
     <>
@@ -64,6 +66,7 @@ export function AmexView({ data, monthLabel, monthNav, ...shared }: Props) {
             pending={data.pending}
             total={data.pendingTotal}
             describe={describe}
+            balance={balance}
             onOpen={(p) => setEditing({ payment: p, key: Date.now() })}
           />
         </div>
@@ -73,6 +76,7 @@ export function AmexView({ data, monthLabel, monthNav, ...shared }: Props) {
           <ExpenseList
             rows={data.month}
             describe={describe}
+            balance={balance}
             onOpen={(p) => setEditing({ payment: p, key: Date.now() })}
           />
         </div>
@@ -91,7 +95,7 @@ export function AmexView({ data, monthLabel, monthNav, ...shared }: Props) {
 }
 
 function Kpis({ data, monthLabel }: { data: Props["data"]; monthLabel: string }) {
-  const people: PaidBy[] = ["andrea", "ricardo", "otros"];
+  const owners: Owner[] = ["casa", "ricardo", "andrea"];
   return (
     <section aria-label={`Datos clave de ${monthLabel}`} className="order-1 rounded-card border bg-card p-4 lg:order-none lg:p-5">
       <div className="grid grid-cols-2 gap-3">
@@ -105,10 +109,10 @@ function Kpis({ data, monthLabel }: { data: Props["data"]; monthLabel: string })
         </div>
       </div>
       <ul className="mt-3.5 grid grid-cols-3 gap-2">
-        {people.map((p) => (
-          <li key={p} className="min-w-0 rounded-[10px] bg-brand-soft px-2.5 py-2">
-            <span className="block text-xs text-muted-foreground">{p === "otros" ? "Otros · Casa" : PAID_BY_LABEL[p]}</span>
-            <span className="block truncate text-sm font-bold tabular-nums">{formatAmount(data.byPerson[p])}</span>
+        {owners.map((o) => (
+          <li key={o} className="min-w-0 rounded-[10px] bg-brand-soft px-2.5 py-2">
+            <span className="block text-xs text-muted-foreground">{OWNER_LABEL[o]}</span>
+            <span className="block truncate text-sm font-bold tabular-nums">{formatAmount(data.byBalance[o])}</span>
           </li>
         ))}
       </ul>
@@ -120,11 +124,13 @@ function PendingCard({
   pending,
   total,
   describe,
+  balance,
   onOpen,
 }: {
   pending: Payment[];
   total: number;
   describe: (p: Payment) => string;
+  balance: (p: Payment) => string;
   onOpen: (p: Payment) => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -191,7 +197,7 @@ function PendingCard({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">{p.description || "Sin descripción"}</span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {p.paidBy ? PAID_BY_LABEL[p.paidBy] : "—"} · {describe(p)}
+                    {balance(p)} · {describe(p)}
                   </span>
                 </span>
                 <span className="text-[15px] font-bold tabular-nums">{formatAmount(p.amount)}</span>
@@ -216,14 +222,16 @@ function PendingCard({
 function ExpenseList({
   rows,
   describe,
+  balance,
   onOpen,
 }: {
   rows: Payment[];
   describe: (p: Payment) => string;
+  balance: (p: Payment) => string;
   onOpen: (p: Payment) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [who, setWho] = useState<PaidBy | "">("");
+  const [who, setWho] = useState<Owner | "">("");
   const [concept, setConcept] = useState("");
   const [onlyPending, setOnlyPending] = useState(false);
 
@@ -238,7 +246,7 @@ function ExpenseList({
   const shown = rows.filter(
     (p) =>
       (!q || p.description.toLowerCase().includes(q) || (p.comment ?? "").toLowerCase().includes(q)) &&
-      (!who || p.paidBy === who) &&
+      (!who || balance(p) === OWNER_LABEL[who]) &&
       (!concept || keyOf(p) === concept) &&
       (!onlyPending || p.pending),
   );
@@ -267,11 +275,11 @@ function ExpenseList({
             className="h-9 min-w-0 border-0 bg-transparent px-0 text-foreground shadow-none focus-visible:ring-0"
           />
         </label>
-        <select aria-label="Pagado por" value={who} onChange={(e) => setWho(e.target.value as PaidBy | "")} className={cn(select, "min-w-0")}>
-          <option value="">Pagado por: todos</option>
-          <option value="andrea">Andrea</option>
+        <select aria-label="Balance" value={who} onChange={(e) => setWho(e.target.value as Owner | "")} className={cn(select, "min-w-0")}>
+          <option value="">Balance: todos</option>
+          <option value="casa">Casa</option>
           <option value="ricardo">Ricardo</option>
-          <option value="otros">Otros</option>
+          <option value="andrea">Andrea</option>
         </select>
         <select aria-label="Concepto" value={concept} onChange={(e) => setConcept(e.target.value)} className={cn(select, "min-w-0 sm:max-w-56")}>
           <option value="">Concepto: todos</option>
@@ -308,7 +316,7 @@ function ExpenseList({
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{p.description || "Sin descripción"}</span>
                           <span className={cn("block truncate text-xs", p.conceptId || p.purchaseId ? "text-muted-foreground" : "text-warning")}>
-                            {p.paidBy ? PAID_BY_LABEL[p.paidBy] : "—"} · {describe(p)}
+                            {balance(p)} · {describe(p)}
                           </span>
                         </span>
                         <span className="flex shrink-0 flex-col items-end gap-0.5">
@@ -331,7 +339,7 @@ function ExpenseList({
                 <tr className="text-left text-xs font-bold tracking-wide text-muted-foreground uppercase">
                   <th scope="col" className="border-b px-3.5 py-3">Fecha</th>
                   <th scope="col" className="border-b px-3.5 py-3">Descripción</th>
-                  <th scope="col" className="border-b px-3.5 py-3">Pagado por</th>
+                  <th scope="col" className="border-b px-3.5 py-3">Balance</th>
                   <th scope="col" className="border-b px-3.5 py-3">Concepto</th>
                   <th scope="col" className="border-b px-3.5 py-3">Estado</th>
                   <th scope="col" className="border-b px-3.5 py-3 text-right">Importe</th>
@@ -346,7 +354,7 @@ function ExpenseList({
                         {p.description || "Sin descripción"}
                       </button>
                     </td>
-                    <td className="border-b px-3.5 py-2.5">{p.paidBy ? PAID_BY_LABEL[p.paidBy] : "—"}</td>
+                    <td className="border-b px-3.5 py-2.5">{balance(p)}</td>
                     <td className={cn("border-b px-3.5 py-2.5", p.conceptId || p.purchaseId ? "text-muted-foreground" : "text-warning")}>
                       {describe(p)}
                     </td>
