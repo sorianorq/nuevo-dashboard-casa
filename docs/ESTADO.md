@@ -46,6 +46,14 @@ concepto) y el rol admin. Las importaciones no se han probado contra la base de 
    18/11/2026: la consulta 1, sin RLS, coincide al céntimo con la app; lo excluido en marzo
    son una liquidación de tarjeta en Casa y traspasos internos en Ricardo, sin filas sin Balance).
 4. Probar una importación real con un extracto (Ricardo decide si se guarda).
+   - 18/11/2026, **solo vista previa** (sin guardar) con un .xls de Sabadell en la cuenta de
+     Casa correcta: la plantilla guardada encaja; los meses ya guardados salen enteros como
+     duplicados (mismo recuento por mes que en la base de datos) y los meses posteriores, como
+     nuevos. Las demás cuentas dan casi todo nuevo o ninguna fila válida, como se esperaba.
+   - **Pendiente de decidir:** dos movimientos idénticos en el mismo archivo (misma fecha,
+     importe y descripción; p. ej. dos transferencias iguales el mismo día) dan el mismo
+     `import_hash`, y la app descarta el segundo como «repetido en el archivo». Ha pasado en
+     este extracto con un abono que parece legítimo.
 5. Fase 2 en adelante: Balances, Presupuesto, Supermercado, American Express, Pagos y el
    alta rápida del ➕ (hoy todas son «Próximamente»).
 
