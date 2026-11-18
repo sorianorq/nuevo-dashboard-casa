@@ -61,18 +61,21 @@ y el rol admin. La importación sí está probada contra la base de datos real (
      todo `owner = casa`, `flow = normal`, hash sha256 único por fila, tipo coherente con el
      signo, las filas idénticas guardadas con hashes distintos. Volver a cargar el archivo da
      0 nuevos y todo duplicado.
-5. **Fase 2 · Balances.** Entrega 1 (solo lectura) hecha el 18/11/2026; ver apartado 2.
-   Falta:
-   - **`FC_ADMIN_EMAIL` / `FC_ADMIN_PASSWORD` de `.env.test.local` son ahora los de Ricardo**
-     (mismo correo; entra con rol `ricardo`). Hacen falta los del usuario admin para probar el
-     rol admin y comparar el Balance de Andrea con producción (criterio de la fase 2);
+5. **Fase 2 · Balances: terminada** (lectura, edición y comparación con producción). Notas:
+   - **Criterio de la fase 2 cumplido** (18/11/2026): con la cuenta admin de
+     `.env.test.local` (rol `admin` dado con `supabase/sql/06_rol_admin.sql`), el Balance de
+     Andrea en la app coincide al céntimo con el cálculo de producción (`andrea.js`) en los
+     12 meses de 2025 y 2026, en ingresos, gastos y ahorro. `andrea_balance`: 359 filas
+     (2025 y 2026), todas con `concept_id`, ninguna sin concepto en el catálogo. Selector
+     «Admin · ver datos de» probado: Andrea → pestañas «Casa | Andrea»;
    - entrega 2 **hecha y probada** el 18/11/2026 (script 05 ejecutado por Ricardo), con la
      sesión de `ricardo` y comprobando la base de datos en cada paso: importe a mano y
      comentario (guardar y quitar), ocultar/mostrar, subir/bajar, periodicidad, renombrar
      (ida y vuelta), alta de concepto manual con «rellenar año» y archivar. Todo se dejó como
      estaba, salvo: la fila `balance_hidden` de Ricardo en `user_preferences` (lista vacía) y
      el concepto archivado «Prueba Claude (borrar)» en el catálogo de Ricardo (sin importes);
-   - también sin probar: guardar concepto, flujo, nueva cuenta o nuevo concepto en Movimientos.
+   - pendiente de fase 1: probar guardar concepto, flujo, nueva cuenta o nuevo concepto en
+     Movimientos.
 6. Fases 3–5: Supermercado, Pagos (Amex y personales), Presupuesto y el alta rápida del ➕.
 
 ## 4. Hallazgos en los datos y en la app en producción
