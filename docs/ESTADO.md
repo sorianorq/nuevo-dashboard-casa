@@ -281,6 +281,9 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Sin grupo «Total ingresos» (18/11/2026, decisión de Ricardo):** duplicaba el total del
+  bloque. Quitado en Casa, Ricardo y Andrea con `fc_delete_concept`; sus conceptos quedan
+  sueltos en Ingresos, en el mismo orden y con todo lo que tenían.
 - **Formato de cifras, decidido por Ricardo el 18/11/2026:** todos los importes de dinero de
   la app con **1 decimal y «€»** («1.234,6 €»), también la hoja de Balances (antes redondeada
   al euro y sin «€») y los ejes de gráficos; porcentajes con 1 decimal; recuentos, enteros.
