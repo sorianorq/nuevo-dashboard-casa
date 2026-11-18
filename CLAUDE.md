@@ -1,5 +1,6 @@
 # Finanzas Casa · instrucciones para Claude Code
 
+- Al empezar una sesión, lee `docs/ESTADO.md` (qué está hecho, qué falta y por qué) y actualízalo al terminar cada paso.
 - La especificación está en `docs/ESPECIFICACION.md`. Léela entera antes de cambiar código y síguela; si algo no está claro o contradice el código, pregunta antes de inventar.
 - Conecta con la base de datos de Supabase **existente**. Prohibido borrar, renombrar o cambiar tipos de tablas o columnas existentes. Cualquier cambio de esquema va en un fichero nuevo en `supabase/sql/` que Ricardo revisa y ejecuta a mano; no lo ejecutes tú.
 - Nunca escribas datos reales en código, tests, logs ni commits. Las claves solo en `.env.local` (fuera de git).
