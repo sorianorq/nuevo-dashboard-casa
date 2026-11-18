@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Link2, PenLine, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { AddConceptButton, BalanceEditor, ManualModeButton } from "@/components/balances/balance-editor";
 import { BalanceMonthList } from "@/components/balances/balance-month-list";
@@ -141,18 +141,7 @@ async function Content({ searchParams }: { searchParams: SP }) {
         </div>
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Link2 className="size-3.5 text-brand" aria-hidden /> dato automático
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <PenLine className="size-3.5 text-brand" aria-hidden /> escrito a mano
-            </span>
-            {view === "real" && <span className="lg:hidden">importe gris = presupuesto</span>}
-            <span className="hidden lg:inline">Cifras redondeadas al euro: pasa el ratón para ver los céntimos.</span>
-            {view === "real" && <span className="hidden lg:inline">Clic en un importe para editarlo o comentarlo.</span>}
-          </p>
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {(hiddenCount > 0 || showAll) && (
               <Link
