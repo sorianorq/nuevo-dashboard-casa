@@ -1,6 +1,6 @@
 # Estado del proyecto · traspaso entre sesiones
 
-Última actualización: 18/11/2026 (permisos aplicados, filas idénticas al importar).
+Última actualización: 18/11/2026 (fases 1–5 terminadas; publicación en Vercel).
 
 Este documento resume lo hecho, lo pendiente y las decisiones tomadas, para que
 cualquier sesión nueva pueda continuar sin el historial del chat. Léelo después
@@ -8,9 +8,24 @@ de `CLAUDE.md` y `docs/ESPECIFICACION.md`. Actualízalo al terminar cada paso.
 
 ## 1. Situación en una frase
 
-La **fase 1 está programada** (Pasos 0–3) y los **permisos por Balance ya están
-aplicados** (script 04 ejecutado por Ricardo el 18/11/2026). El Resumen de Casa (marzo de 2026)
-coincide con la base de datos completa. Falta probar el guardado real.
+Las **fases 1 a 5 de la especificación están hechas y probadas con datos reales**
+(Resumen, Movimientos, Balances, Supermercado, Amex, Pagos de la persona, Presupuesto y
+alta rápida), con los permisos por Balance aplicados (scripts 04–10 ejecutados por Ricardo).
+Lo que queda es publicar la app y los puntos abiertos de datos que se listan a continuación.
+
+**Puntos abiertos (18/11/2026):**
+
+1. **Publicar en Vercel** como proyecto nuevo (no sustituye a `dashboard-rqs.vercel.app`
+   hasta que Ricardo lo decida). Necesita `NEXT_PUBLIC_SUPABASE_URL` y
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` en el proyecto de Vercel, y añadir la URL nueva a las
+   URL de redirección de Supabase Auth si hiciera falta.
+2. **Febrero de 2026, Casa:** ingresos y gastos inflados; parece un traspaso propio marcado
+   como `normal`. Lo revisa Ricardo.
+3. **Casa › «Compra»** no existe aún: el gasto Amex de las compras del Súper se guarda sin
+   concepto (no cambia cifras). Ricardo lo crea en Balances (enlazado, origen Supermercado).
+4. **702 gastos antiguos de Amex sin concepto:** Ricardo los asigna a mano.
+5. **Fallo de producción** con CSV dd/mm/aaaa (día ≤ 12 se intercambia con el mes): puede
+   haber movimientos antiguos con la fecha cambiada; pendiente de revisar.
 
 ## 2. Hecho
 
@@ -301,6 +316,8 @@ app/login, app/sin-acceso              públicas / sin rol
 app/(app)/layout.tsx                   carcasa (menú y barra inferior)
 app/(app)/resumen                      Paso 2
 app/(app)/contabilidad/movimientos     Paso 3 (+ cargar/, revisar/, actions.ts)
+app/(app)/…                            Balances, Supermercado, Pagos (Amex y persona),
+                                       Presupuesto (fases 2–5)
 lib/data/                              ÚNICO acceso a datos (session, summary, transactions,
                                        concepts, accounts, imports, query)
 lib/calc/summary.ts                    reglas del apartado 6 (puras)
