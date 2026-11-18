@@ -169,4 +169,24 @@
     text-transform: uppercase;
     color: var(--accent);
   }
+  /* Barra de scroll siempre visible (macOS la oculta si no se define). */
+  .scrollbar-visible {
+    scrollbar-width: auto;
+    scrollbar-color: var(--muted) var(--track);
+  }
+  .scrollbar-visible::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  .scrollbar-visible::-webkit-scrollbar-track {
+    background: var(--track);
+  }
+  .scrollbar-visible::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border: 3px solid var(--track);
+    border-radius: 999px;
+  }
+  .scrollbar-visible::-webkit-scrollbar-corner {
+    background: var(--track);
+  }
 }

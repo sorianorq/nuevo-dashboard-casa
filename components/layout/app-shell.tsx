@@ -21,7 +21,7 @@ export function AppShell({
       <div className="lg:pl-[260px]">
         <main
           id="contenido"
-          className="mx-auto w-full max-w-[1240px] px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:px-8 lg:pt-8 lg:pb-12"
+          className="mx-auto w-full max-w-[1240px] has-[[data-wide]]:max-w-[1840px] px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:px-8 lg:pt-8 lg:pb-12"
         >
           {children}
         </main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ChevronDown, Link2, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatAmount, formatCellRounded, formatCellSigned, formatSignedAmount } from "@/lib/format";
@@ -47,6 +47,21 @@ export function BalanceTable({
   const { openCell, comments, hidden, manual } = useBalanceEditor();
   const sheet = useDisplaySheet(savedSheet);
   const cols = notes ? 15 : 14;
+  // La caja ocupa lo que queda de pantalla desde donde empieza: así la barra de
+  // scroll horizontal queda siempre a la vista (sin bajar hasta el final).
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const fit = () => {
+      const el = boxRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setMaxHeight(Math.max(360, window.innerHeight - top - 24));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
   const visible = (r: BalanceRow) => showAll || !hidden.has(r.id);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -83,7 +98,7 @@ export function BalanceTable({
               key={i}
               title={title}
               className={cn(
-                "border-b px-2 py-2 text-right whitespace-nowrap tabular-nums",
+                "border-b px-1.5 py-2 text-right whitespace-nowrap tabular-nums",
                 i + 1 === currentMonth && "bg-brand-soft/60",
                 v === null && "text-muted-foreground",
                 (tone ?? resultTone) === "positive" && "text-positive",
@@ -98,7 +113,7 @@ export function BalanceTable({
                   field={view === "presupuesto" ? "budget" : "real"}
                   value={v}
                   label={`${row.name}, ${MONTH_LABELS[i]}${view === "presupuesto" ? " (presupuesto)" : ""}`}
-                  className="w-[4.5rem]"
+                  className="w-[3.9rem] px-1 text-[12px]"
                 />
               ) : editable && row ? (
                 <button
@@ -182,18 +197,25 @@ export function BalanceTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-card border bg-card">
-      <table className={cn("w-full border-collapse text-[13px]", notes ? "min-w-[1260px]" : "min-w-[1120px]", manual && "min-w-[1300px]")}>
+    // Caja con su propio scroll (como Excel): cabecera de meses y columna de conceptos fijas,
+    // y la barra horizontal siempre a la vista cuando no caben todos los meses.
+    <div
+      ref={boxRef}
+      data-wide
+      style={maxHeight ? { maxHeight } : undefined}
+      className="scrollbar-visible max-h-[calc(100dvh-22rem)] min-h-[360px] overflow-auto rounded-card border bg-card"
+    >
+      <table className={cn("w-full border-collapse text-[13px]", notes ? "min-w-[1100px]" : "min-w-[1010px]")}>
         <caption className="sr-only">
           Balance {year}, vista {view}. Cifras redondeadas al euro; el importe exacto aparece al pasar el ratón.
         </caption>
         <thead>
           <tr className="text-xs text-muted-foreground">
-            <th scope="col" className="sticky left-0 z-10 min-w-[220px] border-b bg-surface px-4 py-3 text-left font-semibold">
+            <th scope="col" className="sticky top-0 left-0 z-30 min-w-[190px] border-b bg-surface px-4 py-3 text-left font-semibold">
               Concepto
             </th>
             {notes && (
-              <th scope="col" className="min-w-[140px] border-b px-2 py-3 text-left font-semibold">
+              <th scope="col" className="sticky top-0 z-20 min-w-[104px] border-b bg-surface px-2 py-3 text-left font-semibold">
                 Notas
               </th>
             )}
@@ -202,15 +224,15 @@ export function BalanceTable({
                 key={m}
                 scope="col"
                 className={cn(
-                  "border-b px-2 py-3 text-right font-semibold",
-                  i + 1 === currentMonth && "bg-brand-soft/60 font-extrabold text-brand",
+                  "sticky top-0 z-20 border-b bg-surface px-1.5 py-3 text-right font-semibold",
+                  i + 1 === currentMonth && "bg-brand-soft font-extrabold text-brand",
                 )}
                 aria-current={i + 1 === currentMonth ? "date" : undefined}
               >
                 {m}
               </th>
             ))}
-            <th scope="col" className="border-b py-3 pr-4 pl-2 text-right font-extrabold text-foreground">
+            <th scope="col" className="sticky top-0 z-20 border-b bg-surface py-3 pr-4 pl-2 text-right font-extrabold text-foreground">
               Total
             </th>
           </tr>

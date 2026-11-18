@@ -281,6 +281,12 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Hoja anual de Balances a lo ancho (18/11/2026):** la página de Balances usa hasta 1840 px
+  (`data-wide` + `has-[[data-wide]]` en `app-shell.tsx`; el resto sigue en 1240 px). Tabla más
+  compacta: en 1440 px caben los 12 meses y el Total (también Andrea con Notas); en modo manual
+  caben a partir de ~1600 px. Si no caben, la tabla va en su caja con scroll propio, cabecera
+  de meses y columna de conceptos fijas, altura ajustada a la pantalla (la barra horizontal
+  queda a la vista) y barra siempre visible (`.scrollbar-visible` en `globals.css`).
 - **Ocultar fila (como en Excel):** icono de ojo junto a la papelera de cada concepto en
   Balances (tabla y móvil). Es el mismo «Ocultar» del menú «⋯»: solo para quien la oculta
   (`user_preferences`), sigue sumando, y se ven con «N filas ocultas · Mostrar».
