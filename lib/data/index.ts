@@ -49,6 +49,9 @@ export {
   updateBalanceConcept,
   moveBalanceConcept,
   setConceptArchived,
+  previewDeleteConcept,
+  deleteBalanceConcept,
+  type DeletePreview,
   setConceptHidden,
   type NewConceptInput,
 } from "./balance-edit";

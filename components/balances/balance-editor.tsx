@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createContext, useContext, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Archive, ArchiveRestore, Eye, EyeOff, MoreHorizontal, Pencil, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Archive, ArchiveRestore, Eye, EyeOff, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,11 +37,14 @@ import {
 import {
   addConcept,
   archiveConcept,
+  deleteConcept,
   editConcept,
   hideConcept,
   moveConcept,
+  previewDelete,
   saveCell,
 } from "@/app/(app)/contabilidad/balances/actions";
+import type { DeletePreview } from "@/lib/data/balance-edit";
 
 type Group = { id: string; name: string; section: ConceptSection };
 
@@ -510,5 +513,88 @@ export function AddConceptButton({ section, variant = "row" }: { section?: Conce
     >
       <Plus className="size-4" aria-hidden /> Añadir
     </button>
+  );
+}
+
+/** Texto «12 movimientos, 3 importes escritos…» de lo que se mueve. */
+function describeCounts(c: DeletePreview["counts"]) {
+  const parts: string[] = [];
+  const add = (n: number, one: string, many: string) => n > 0 && parts.push(n === 1 ? `1 ${one}` : `${n} ${many}`);
+  add(c.transactions, "movimiento del banco", "movimientos del banco");
+  add(c.manual, "gasto apuntado a mano", "gastos apuntados a mano");
+  add(c.amounts, "importe escrito", "importes escritos");
+  add(c.comments, "comentario", "comentarios");
+  add(c.budgets, "partida de presupuesto", "partidas de presupuesto");
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts.at(-1)}` : (parts[0] ?? "");
+}
+
+/**
+ * Icono de borrar a la izquierda de cada concepto. Antes de borrar avisa de
+ * adónde va lo que tiene asignado (su «Otros») o, en un subtotal, de que sus
+ * conceptos quedan sueltos.
+ */
+export function DeleteConceptButton({ row, className }: { row: BalanceRow; className?: string }) {
+  const { tab } = useBalanceEditor();
+  const [preview, setPreview] = useState<DeletePreview | null>(null);
+  const [pending, start] = useTransition();
+
+  const ask = () =>
+    start(async () => {
+      const res = await previewDelete(tab, row.id);
+      if (!res.ok) return void toast.error(res.error);
+      setPreview(res.preview);
+    });
+  const confirm = () =>
+    start(async () => {
+      const res = await deleteConcept(tab, row.id);
+      if (!res.ok) return void toast.error(res.error);
+      setPreview(null);
+      toast.success(res.target ? `Concepto borrado: lo asignado pasa a «${res.target}»` : "Subtotal borrado");
+    });
+
+  const what = preview ? describeCounts(preview.counts) : "";
+  return (
+    <>
+      <button
+        type="button"
+        onClick={ask}
+        disabled={pending}
+        aria-label={`Borrar el concepto ${row.name}`}
+        title="Borrar concepto"
+        className={cn(
+          "grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-destructive disabled:opacity-50",
+          className,
+        )}
+      >
+        <Trash2 className="size-3.5" aria-hidden />
+      </button>
+      {preview && (
+        <Dialog open onOpenChange={(o) => !o && !pending && setPreview(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>¿Borrar «{preview.name}»?</DialogTitle>
+              <DialogDescription>
+                {preview.subtotal
+                  ? preview.children
+                    ? `Es un subtotal: sus ${preview.children === 1 ? "1 concepto queda" : `${preview.children} conceptos quedan`} sueltos en el bloque, con todo lo que tienen.`
+                    : "Es un subtotal vacío."
+                  : what
+                    ? `Tiene ${what}. Todo pasa a «${preview.target}»${preview.createTarget ? " (se crea, porque no existe)" : ""}; si ya tiene importe ese mes, se suman.`
+                    : "No tiene nada asignado."}{" "}
+                No se puede deshacer.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" disabled={pending} onClick={() => setPreview(null)} className="h-11">
+                Cancelar
+              </Button>
+              <Button variant="destructive" disabled={pending} onClick={confirm} className="h-11">
+                {pending ? "Borrando…" : "Borrar concepto"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }

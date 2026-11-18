@@ -275,6 +275,15 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   Hay copia previa de las tablas de los tres Balances (fuera del repositorio).
 - **El bloque «Ahorro» se llama «Inversión»** en toda la app (decisión de Ricardo); el
   «Ahorro» del Resumen (ingresos − gastos) no cambia.
+- **Borrar conceptos, decidido por Ricardo el 18/11/2026** (antes un concepto solo se
+  archivaba): icono de papelera a la izquierda de cada concepto en Balances (tabla y móvil).
+  Avisa de lo que tiene y adónde va; al confirmar, **todo lo asignado pasa a su «Otros»**:
+  el «Otros…» de su mismo grupo; si no, el «Otros…» suelto del bloque (primero «Otros gastos»
+  / «Otros ingresos» / «Otras inversiones»); si no hay, se crea (o se recupera si está
+  archivado). Movimientos, gastos a mano y compras cambian de concepto; importes escritos y
+  presupuesto se suman si el destino ya tiene ese mes; comentarios se juntan. Un subtotal
+  se borra y sus conceptos quedan sueltos. Lo hace `fc_delete_concept` (**script 11**,
+  SECURITY DEFINER, todo o nada, solo en los Balances del rol). Sin el script, la app avisa.
 - **Gastos a mano: Balance + casilla Amex, decidido por Ricardo el 18/11/2026** (sustituye a
   «paga Andrea o Ricardo; va a Casa o al Balance de quien pagó»):
   - el formulario (lista de la Amex, ➕ y editar desde Movimientos) pide **Balance** (Casa ·
@@ -342,7 +351,8 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   - conceptos archivados solo aparecen si tienen algún importe en el año.
 - **Balances, entrega 2:**
   - quitar un importe a mano o un comentario borra su fila (`andrea_balance` /
-    `andrea_comments`); es lo único que se borra. Un concepto nunca se borra: se archiva;
+    `andrea_comments`). Un concepto se archiva o, desde el 18/11/2026, se borra (ver
+    «Borrar conceptos»);
   - renombrar cambia también `concept` (y pone `concept_id`) en importes y comentarios;
   - orden compartido en `andrea_concepts.sort_order` (se renumera de 10 en 10 al mover);
     filas ocultas por usuario en `user_preferences` (`key = 'balance_hidden'`,

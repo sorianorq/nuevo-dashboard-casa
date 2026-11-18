@@ -3,7 +3,9 @@
 import { refresh } from "next/cache";
 import {
   createBalanceConcept,
+  deleteBalanceConcept,
   getDataContext,
+  previewDeleteConcept,
   moveBalanceConcept,
   setCellComment,
   setConceptArchived,
@@ -148,5 +150,25 @@ export async function hideConcept(tab: string, conceptId: string, hidden: boolea
     await setConceptHidden(ctx, conceptId, hidden);
     refresh();
     return {};
+  });
+}
+
+/** Qué pasará al borrar un concepto (para el aviso). */
+export async function previewDelete(tab: string, conceptId: string) {
+  return run(async () => {
+    if (!isId(conceptId)) throw new Error("Datos no válidos.");
+    const ctx = await ctxFor(tab);
+    return { preview: await previewDeleteConcept(ctx, conceptId) };
+  });
+}
+
+/** Borra un concepto; lo asignado pasa a su «Otros». */
+export async function deleteConcept(tab: string, conceptId: string) {
+  return run(async () => {
+    if (!isId(conceptId)) throw new Error("Datos no válidos.");
+    const ctx = await ctxFor(tab);
+    const result = await deleteBalanceConcept(ctx, conceptId);
+    refresh();
+    return result;
   });
 }

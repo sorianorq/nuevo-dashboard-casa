@@ -8,7 +8,8 @@ import { fetchAll } from "./query";
 /**
  * Edición del Balance activo (`ctx.owner`). Todas las funciones comprueban que
  * el concepto es de ese Balance; RLS (script 05) lo vuelve a comprobar.
- * No se borra nada salvo un importe escrito a mano o un comentario (quitarlos).
+ * Se borra un importe o comentario al quitarlo, y un concepto con el icono de
+ * borrar (lo asignado pasa a su «Otros», script 11).
  */
 
 
@@ -376,4 +377,144 @@ export async function setConceptHidden(ctx: DataContext, conceptId: string, hidd
     ? await supabase.from("user_preferences").update({ value }).eq("user_id", ctx.userId).eq("key", HIDDEN_KEY)
     : await supabase.from("user_preferences").insert({ user_id: ctx.userId, key: HIDDEN_KEY, value });
   if (error) throw dbError(error);
+}
+
+// --- Borrar un concepto (script 11) -----------------------------------------
+
+/** Nombre del «Otros» que se crea si el bloque no tiene ninguno. */
+const DEFAULT_OTHERS: Record<ConceptSection, string> = {
+  ingresos: "Otros ingresos",
+  gastos: "Otros gastos",
+  ahorro: "Otras inversiones",
+};
+const isOthers = (name: string) => /^otr[oa]s\b/i.test(name.trim());
+
+type DeletePlan = {
+  concept: ConceptRow;
+  /** Subtotal: sus conceptos quedan sueltos. */
+  children: number;
+  /** Destino de lo asignado (null en un subtotal). */
+  target: { id: string | null; name: string; create: boolean; unarchive: boolean } | null;
+  counts: { transactions: number; manual: number; amounts: number; comments: number; budgets: number };
+};
+
+/**
+ * Decide adónde va lo del concepto: el «Otros…» de su mismo grupo; si no, el
+ * «Otros…» suelto del bloque (el de nombre por defecto primero); si no hay,
+ * se crea (o se recupera si está archivado).
+ */
+async function deletePlan(ctx: DataContext, conceptId: string): Promise<DeletePlan> {
+  const c = await loadConcept(ctx, conceptId);
+  const supabase = await createClient();
+  const all = (await fetchAll((a, b) =>
+    supabase
+      .from("andrea_concepts")
+      .select("id, concept, section, kind, parent_id, sort_order, archived, periodicity")
+      .eq("owner", ctx.owner)
+      .order("id")
+      .range(a, b),
+  )).map((r) => ({ ...r, id: String(r.id), parent_id: r.parent_id ? String(r.parent_id) : null }) as ConceptRow);
+
+  const n = (r: { count: number | null; error: { message: string } | null }) => {
+    if (r.error) throw dbError(r.error);
+    return r.count ?? 0;
+  };
+  const head = { count: "exact" as const, head: true };
+  const byIdOrName = `concept_id.eq.${c.id},and(concept_id.is.null,concept.eq."${c.concept.replace(/"/g, '\\"')}")`;
+  const [transactions, manual, amounts, comments, budgets] =
+    c.kind === "subtotal"
+      ? [0, 0, 0, 0, 0]
+      : (
+          await Promise.all([
+            supabase.from("transactions").select("id", head).eq("concept_id", c.id),
+            supabase.from("amex_expenses").select("id", head).eq("concept_id", c.id),
+            supabase.from("andrea_balance").select("id", head).eq("owner", ctx.owner).or(byIdOrName),
+            supabase.from("andrea_comments").select("id", head).eq("owner", ctx.owner).or(byIdOrName),
+            supabase.from("monthly_budgets").select("id", head).eq("owner", ctx.owner).eq("concept_id", c.id),
+          ])
+        ).map(n);
+  const counts = { transactions, manual, amounts, comments, budgets };
+
+  if (c.kind === "subtotal") {
+    return { concept: c, children: all.filter((r) => r.parent_id === c.id).length, target: null, counts };
+  }
+  const usable = all.filter((r) => r.id !== c.id && r.section === c.section && r.kind !== "subtotal");
+  const active = usable.filter((r) => !r.archived);
+  const pick =
+    (c.parent_id ? active.find((r) => r.parent_id === c.parent_id && isOthers(r.concept)) : undefined) ??
+    active.find((r) => r.parent_id === null && r.concept.toLowerCase() === DEFAULT_OTHERS[c.section].toLowerCase()) ??
+    active.find((r) => r.parent_id === null && isOthers(r.concept)) ??
+    active.find((r) => isOthers(r.concept));
+  if (pick) return { concept: c, children: 0, target: { id: pick.id, name: pick.concept, create: false, unarchive: false }, counts };
+
+  const name = DEFAULT_OTHERS[c.section];
+  const archived = usable.find((r) => r.concept.toLowerCase() === name.toLowerCase());
+  if (archived) return { concept: c, children: 0, target: { id: archived.id, name: archived.concept, create: false, unarchive: true }, counts };
+  if (all.some((r) => r.concept.toLowerCase() === name.toLowerCase())) {
+    throw new Error(`Ya existe «${name}» como grupo: renómbralo antes de borrar este concepto.`);
+  }
+  return { concept: c, children: 0, target: { id: null, name, create: true, unarchive: false }, counts };
+}
+
+export type DeletePreview = {
+  name: string;
+  subtotal: boolean;
+  children: number;
+  target: string | null;
+  createTarget: boolean;
+  counts: DeletePlan["counts"];
+};
+
+/** Lo que pasará al borrar (para el aviso de confirmación). */
+export async function previewDeleteConcept(ctx: DataContext, conceptId: string): Promise<DeletePreview> {
+  const p = await deletePlan(ctx, conceptId);
+  return {
+    name: p.concept.concept,
+    subtotal: p.concept.kind === "subtotal",
+    children: p.children,
+    target: p.target?.name ?? null,
+    createTarget: Boolean(p.target?.create || p.target?.unarchive),
+    counts: p.counts,
+  };
+}
+
+/**
+ * Borra un concepto: lo asignado pasa a su «Otros» (script 11, todo o nada).
+ * Un subtotal se borra y sus conceptos quedan sueltos en el bloque.
+ */
+export async function deleteBalanceConcept(ctx: DataContext, conceptId: string) {
+  const p = await deletePlan(ctx, conceptId);
+  const supabase = await createClient();
+  let targetId: string | null = p.target?.id ?? null;
+
+  if (p.target?.unarchive && targetId) {
+    const { error } = await supabase.from("andrea_concepts").update({ archived: false, parent_id: null }).eq("id", targetId).eq("owner", ctx.owner);
+    if (error) throw dbError(error);
+  }
+  if (p.target?.create) {
+    const section = p.concept.section;
+    const created = await createBalanceConcept(ctx, {
+      name: p.target.name,
+      section,
+      kind: p.concept.kind === "manual" ? "manual" : "linked",
+      linkSource: p.concept.kind === "manual" ? null : "movimientos",
+      parentId: null,
+      periodicity: null,
+      fillAmount: null,
+      fillYear: new Date().getFullYear(),
+    });
+    targetId = created.id;
+    if (section === "gastos" && p.concept.kind !== "manual") {
+      await supabase.from("andrea_concepts").update({ pagos_visible: true }).eq("id", targetId).eq("owner", ctx.owner);
+    }
+  }
+
+  const { error } = await supabase.rpc("fc_delete_concept", { p_concept: p.concept.id, p_target: targetId });
+  if (error) {
+    if (/fc_delete_concept|function .* does not exist|PGRST202/i.test(`${error.message} ${error.code ?? ""}`)) {
+      throw new Error("Para borrar conceptos falta ejecutar el script 11 en Supabase.");
+    }
+    throw dbError(error);
+  }
+  return { target: p.target?.name ?? null };
 }

@@ -7,7 +7,7 @@ import { formatAmount, formatCellRounded, formatCellSigned, formatSignedAmount }
 import { yearTotal, type BalanceRow, type BalanceSheet, type MonthValues } from "@/lib/calc/balance";
 import { SECTION_LABEL, type ConceptSection } from "@/lib/labels";
 import { cellNote, deviationTone, valuesFor, type BalanceView } from "./shared";
-import { AddConceptButton, ConceptMenu, useBalanceEditor } from "./balance-editor";
+import { AddConceptButton, ConceptMenu, DeleteConceptButton, useBalanceEditor } from "./balance-editor";
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const TOTAL_LABEL: Record<ConceptSection, string> = {
@@ -124,6 +124,7 @@ export function BalanceTable({
           )}
         >
           <span className="flex items-center gap-1.5">
+            <DeleteConceptButton row={row} className="-ml-2" />
             {isSub ? (
               <button
                 type="button"
