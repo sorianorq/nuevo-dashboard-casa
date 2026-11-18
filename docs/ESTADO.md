@@ -281,6 +281,11 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Formato de cifras, decidido por Ricardo el 18/11/2026:** todos los importes de dinero de
+  la app con **1 decimal y «€»** («1.234,6 €»), también la hoja de Balances (antes redondeada
+  al euro y sin «€») y los ejes de gráficos; porcentajes con 1 decimal; recuentos, enteros.
+  Todo sale de `lib/format.ts` (`formatAmount`, `formatSignedAmount`, `formatCellRounded`…).
+  Las casillas de edición siguen admitiendo y mostrando céntimos exactos.
 - **Menú lateral plegable (ordenador, 18/11/2026):** icono en la cabecera del menú para
   ocultarlo y botón arriba a la izquierda para mostrarlo. Se recuerda en el navegador
   (`localStorage` `fc-sidebar`) y se aplica antes de pintar con un script en `app/layout.tsx`

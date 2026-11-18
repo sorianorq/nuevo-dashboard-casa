@@ -1,8 +1,11 @@
 /**
  * Formato es-ES de importes, porcentajes y fechas (especificación, apartado 1).
  *
- * - Importes con 2 decimales y separador de miles siempre: 1.234,56 €
- *   (Intl en es-ES no agrupa los números de 4 cifras si no se fuerza).
+ * - Importes con 1 decimal, «€» y separador de miles siempre: 1.234,6 €
+ *   (decisión de Ricardo, 18/11/2026: todas las cifras de dinero de la app,
+ *   también la hoja de Balances y los gráficos). Porcentajes con 1 decimal;
+ *   recuentos, enteros. Intl en es-ES no agrupa los números de 4 cifras si
+ *   no se fuerza.
  * - Signo de gasto: «−» (U+2212), no el guion.
  * - Fechas dd/mm/aaaa. Las fechas de la base de datos son `date`
  *   ('YYYY-MM-DD'): se tratan como texto para no depender de la zona horaria.
@@ -13,18 +16,13 @@ const MINUS = "−";
 const currency = new Intl.NumberFormat("es-ES", {
   style: "currency",
   currency: "EUR",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
   useGrouping: "always",
 });
 
-const currencyRounded = new Intl.NumberFormat("es-ES", {
-  style: "currency",
-  currency: "EUR",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-  useGrouping: "always",
-});
+/** Por debajo de 0,05 € se muestra «0,0 €» (sin signo). */
+const MONEY_ZERO = 0.05;
 
 const decimal1 = new Intl.NumberFormat("es-ES", {
   minimumFractionDigits: 1,
@@ -32,21 +30,20 @@ const decimal1 = new Intl.NumberFormat("es-ES", {
   useGrouping: "always",
 });
 
-/** 1.234,56 € · negativos con «−». */
+/** 1.234,6 € · negativos con «−». */
 export function formatAmount(value: number): string {
   const text = currency.format(Math.abs(value));
-  return value < 0 && !isZero(value) ? `${MINUS}${text}` : text;
+  return value < 0 && !isZero(value, MONEY_ZERO) ? `${MINUS}${text}` : text;
 }
 
-/** Igual sin decimales (ejes de gráficos, cifras compactas). */
+/** Cifras compactas: igual que formatAmount (también con 1 decimal). */
 export function formatAmountRounded(value: number): string {
-  const text = currencyRounded.format(Math.abs(value));
-  return value < 0 && Math.round(value) !== 0 ? `${MINUS}${text}` : text;
+  return formatAmount(value);
 }
 
-/** Con signo explícito: «+1.234,56 €» / «−1.234,56 €». Cero sin signo. */
+/** Con signo explícito: «+1.234,6 €» / «−1.234,6 €». Cero sin signo. */
 export function formatSignedAmount(value: number): string {
-  if (isZero(value)) return currency.format(0);
+  if (isZero(value, MONEY_ZERO)) return currency.format(0);
   return `${value > 0 ? "+" : MINUS}${currency.format(Math.abs(value))}`;
 }
 
@@ -141,29 +138,22 @@ function isZero(value: number, epsilon = 0.005) {
 
 const compact = new Intl.NumberFormat("es-ES", {
   notation: "compact",
+  minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
 
-/** Ejes de gráficos: «1,2 mil €», «850 €». */
+/** Ejes de gráficos: «1,2 mil €», «850,0 €». */
 export function formatAmountCompact(value: number): string {
   const text = `${compact.format(Math.abs(value))} €`;
-  return value < 0 && Math.round(value) !== 0 ? `${MINUS}${text}` : text;
+  return value < 0 && !isZero(value, MONEY_ZERO) ? `${MINUS}${text}` : text;
 }
 
-const integer = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-  useGrouping: "always",
-});
-
-/** Celdas de la hoja anual: «1.235» / «−80» (redondeado al euro, sin «€»). */
+/** Celdas de la hoja anual: «1.234,6 €» / «−80,0 €» (como formatAmount). */
 export function formatCellRounded(value: number): string {
-  const text = integer.format(Math.abs(value));
-  return value < 0 && Math.round(value) !== 0 ? `${MINUS}${text}` : text;
+  return formatAmount(value);
 }
 
-/** Igual con signo explícito (desvíos): «+120» / «−35». Cero sin signo. */
+/** Igual con signo explícito (desvíos): «+120,0 €» / «−35,5 €». Cero sin signo. */
 export function formatCellSigned(value: number): string {
-  if (Math.round(value) === 0) return integer.format(0);
-  return `${value > 0 ? "+" : MINUS}${integer.format(Math.abs(value))}`;
+  return formatSignedAmount(value);
 }

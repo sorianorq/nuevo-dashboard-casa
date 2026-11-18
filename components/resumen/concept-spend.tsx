@@ -1,5 +1,5 @@
 import type { ConceptSpendRow } from "@/lib/data";
-import { formatAmount, formatSignedAmount } from "@/lib/format";
+import { formatAmount, formatPercent, formatSignedAmount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -43,7 +43,7 @@ export function ConceptSpend({ rows, total }: { rows: ConceptSpendRow[]; total: 
               )}
             </div>
             <p className="mt-1 flex flex-wrap justify-between gap-x-3 text-[11px] text-muted-foreground tabular-nums">
-              <span>{Math.round(share * 100)} % del gasto</span>
+              <span>{formatPercent(share)} del gasto</span>
               {r.budget !== null && (
                 <span className={cn(over && "font-bold text-warning")}>
                   {over ? `▲ ${formatSignedAmount(r.amount - r.budget)} sobre ` : "de "}

@@ -204,7 +204,7 @@ export function BalanceTable({
     >
       <table className={cn("w-full border-collapse text-[13px]", notes ? "min-w-[1100px]" : "min-w-[1010px]")}>
         <caption className="sr-only">
-          Balance {year}, vista {view}. Cifras redondeadas al euro; el importe exacto aparece al pasar el ratón.
+          Balance {year}, vista {view}. Importes en euros con un decimal.
         </caption>
         <thead>
           <tr className="text-xs text-muted-foreground">
