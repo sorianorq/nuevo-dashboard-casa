@@ -15,10 +15,13 @@ Lo que queda es publicar la app y los puntos abiertos de datos que se listan a c
 
 **Puntos abiertos (18/11/2026):**
 
-1. **Publicar en Vercel** como proyecto nuevo (no sustituye a `dashboard-rqs.vercel.app`
-   hasta que Ricardo lo decida). Necesita `NEXT_PUBLIC_SUPABASE_URL` y
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY` en el proyecto de Vercel, y añadir la URL nueva a las
-   URL de redirección de Supabase Auth si hiciera falta.
+1. ~~Publicar en Vercel~~ (hecho el 18/11/2026): proyecto nuevo `nuevo-dashboard-casa`
+   (cuenta `sorianorq-7130`), **https://nuevo-dashboard-casa.vercel.app**, subido con
+   `vercel deploy --prod` desde este equipo (no está conectado a GitHub). Variables
+   `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en los 3 entornos.
+   Comprobado con la sesión de `ricardo` a 390 px: login y las 7 pantallas principales,
+   sin errores. `dashboard-rqs.vercel.app` sigue igual; sustituirla lo decide Ricardo.
+   Para volver a publicar: `npx vercel deploy --prod`.
 2. **Febrero de 2026, Casa:** ingresos y gastos inflados; parece un traspaso propio marcado
    como `normal`. Lo revisa Ricardo.
 3. **Casa › «Compra»** no existe aún: el gasto Amex de las compras del Súper se guarda sin
