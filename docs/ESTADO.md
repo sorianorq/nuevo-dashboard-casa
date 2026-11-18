@@ -133,9 +133,12 @@ y el rol admin. La importación sí está probada contra la base de datos real (
     el banco es `card_settlement`;
   - los 702 gastos de Amex existentes se quedan como están: Ricardo les asignará concepto a
     mano más adelante;
-  - una compra de Supermercado pagada con Amex **no** crea su gasto en la Amex (sin vínculo
-    automático); `payment_type = 'amex'` es solo la forma de pago. Pendiente de confirmar al
-    empezar la fase 3.
+  - una compra de Supermercado pagada con Amex (`payment_type = 'amex'`) **sí aparece en la
+    lista de la Amex** (confirmado por Ricardo, como en la especificación funcional 5.5): se
+    crea su gasto en `amex_expenses` con `purchase_id` y concepto Casa › Compra; editar o
+    borrar la compra lo actualiza. En el Balance cuenta una sola vez, en «Compra», porque los
+    gastos con `purchase_id` ya se excluyen. Por defecto `paid_by = 'otros'` (Casa): a
+    confirmar con Ricardo al hacer la fase 3.
 - **Balances, detalles de la entrega 1:**
   - lo escrito a mano (`andrea_balance`) cuenta en cualquier mes, también futuros, como en
     producción; lo automático, solo hasta el mes en curso;
