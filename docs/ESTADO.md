@@ -1,6 +1,6 @@
 # Estado del proyecto · traspaso entre sesiones
 
-Última actualización: 18/11/2026 · último commit de código: `5819a74`.
+Última actualización: 18/11/2026 (permisos aplicados) · último commit de código: `5819a74`.
 
 Este documento resume lo hecho, lo pendiente y las decisiones tomadas, para que
 cualquier sesión nueva pueda continuar sin el historial del chat. Léelo después
@@ -8,9 +8,9 @@ de `CLAUDE.md` y `docs/ESPECIFICACION.md`. Actualízalo al terminar cada paso.
 
 ## 1. Situación en una frase
 
-La **fase 1 está programada** (Pasos 0–3). Está bloqueada por los **permisos de
-Supabase (RLS)**: hasta que Ricardo ejecute `supabase/sql/04_permisos_por_balance.sql`,
-cada usuario solo ve las filas que creó él.
+La **fase 1 está programada** (Pasos 0–3) y los **permisos por Balance ya están
+aplicados** (script 04 ejecutado por Ricardo el 18/11/2026). Falta que Ricardo compare los
+totales con la consulta de comprobación y probar el guardado real.
 
 ## 2. Hecho
 
@@ -27,15 +27,21 @@ rol y las 10 pantallas a 390 y 1440 px, sin errores ni desbordamiento horizontal
 totales del Resumen de marzo de 2026 (Casa) coinciden al céntimo con una consulta directa
 hecha con la misma sesión, es decir, con lo que RLS deja ver a ese usuario.
 
+**Verificado tras el script 04** (18/11/2026, usuario `ricardo`): `fc_allowed_owners()`
+devuelve `casa` y `ricardo`; se ven los conceptos de Casa y no queda ningún «Concepto
+desconocido»; no se ven filas de `andrea`; Supermercado, Amex y plantillas visibles;
+`monthly_budgets` vacía (como dice la especificación). Resumen, Movimientos, Revisar y
+Cargar en Casa y personal, a 390 y 1440 px: sin errores ni desbordamiento. Todos los
+movimientos de Casa visibles los creó el propio `ricardo`, así que los totales de Casa no
+cambian respecto a la verificación anterior.
+
 **Sin verificar todavía:** guardar de verdad (concepto, flujo, importación, nueva cuenta o
 concepto) y el rol admin. Las importaciones no se han probado contra la base de datos real.
 
 ## 3. Pendiente (en este orden)
 
-1. **Ricardo ejecuta `supabase/sql/04_permisos_por_balance.sql`** en Supabase → SQL Editor.
-   Solo añade políticas `fc_*` y la función `fc_allowed_owners()`; trae instrucciones para deshacerlo.
-2. Volver a probar con sesión real: los conceptos de Casa deben verse (ahora salen como
-   «Concepto desconocido») y los totales de Casa deben incluir lo importado por otros usuarios.
+1. ~~Ricardo ejecuta el script 04~~ (hecho el 18/11/2026).
+2. ~~Volver a probar con sesión real~~ (hecho; ver apartado 2).
 3. Comparar los totales con `supabase/sql/comprobaciones/resumen_marzo_2026_casa.sql`
    (lo ejecuta Ricardo; ve todos los datos, sin RLS).
 4. Probar una importación real con un extracto (Ricardo decide si se guarda).
@@ -44,8 +50,9 @@ concepto) y el rol admin. Las importaciones no se han probado contra la base de 
 
 ## 4. Hallazgos en los datos y en la app en producción
 
-- **RLS actual:** con la sesión de `ricardo` solo se ven filas con `user_id = auth.uid()`.
-  El catálogo de conceptos de Casa pertenece al usuario admin, así que Ricardo no lo ve.
+- **RLS:** antes del script 04 cada usuario solo veía filas con `user_id = auth.uid()`
+  (el catálogo de Casa es del admin). Con las políticas `fc_*` cada rol ve su Balance.
+- En la URL la pestaña personal es `?balance=personal` (no el nombre de la persona).
 - **App en producción** (PWA estática en `dashboard-rqs.vercel.app`, repositorio privado
   `sorianorq/finanzas`, usa xlsx 0.18.5):
   - `import_hash` = `'h'` + hash 31 en base 36 (no sha256);
