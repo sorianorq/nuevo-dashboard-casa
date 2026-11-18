@@ -15,6 +15,8 @@ import {
   saveTemplate,
   setTransactionConcept,
   setTransactionFlow,
+  manualConflicts,
+  setManualAmount,
 } from "@/lib/data";
 import { parseBalanceTab } from "@/lib/balance";
 import { importHash } from "@/lib/import/hash";
@@ -206,11 +208,31 @@ export async function previewImport(tab: string, accountId: string, rows: Parsed
 }
 
 /** Paso 3: guarda los nuevos (vuelve a comprobar duplicados) y la plantilla. */
+/** Mes (año, mes) de una fecha «aaaa-mm-dd». */
+const cellOf = (conceptId: string, date: string) => ({ conceptId, year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) });
+
+/**
+ * Antes de importar: conceptos y meses con importe escrito a mano en los que
+ * caerían movimientos del extracto (lo escrito manda y el extracto no se vería).
+ */
+export async function checkImportConflicts(tab: string, rows: { date: string; conceptId: string | null }[]) {
+  return run(async () => {
+    if (!Array.isArray(rows) || rows.length > 5000) throw new Error("Datos no válidos.");
+    const ctx = await ctxFor(tab);
+    const cells = rows
+      .filter((r) => typeof r.conceptId === "string" && isId(r.conceptId) && /^\d{4}-\d{2}-\d{2}$/.test(r.date))
+      .map((r) => cellOf(r.conceptId as string, r.date));
+    return { conflicts: await manualConflicts(ctx, cells) };
+  });
+}
+
 export async function commitImport(
   tab: string,
   accountId: string,
   template: ImportTemplate,
   rows: (ParsedRow & { conceptId: string | null })[],
+  /** Celdas en las que se usa el extracto: se quita lo escrito a mano. */
+  replaceManual: { conceptId: string; year: number; month: number }[] = [],
 ) {
   return run(async () => {
     if (!isId(accountId)) throw new Error("Cuenta no válida.");
@@ -226,7 +248,16 @@ export async function commitImport(
       .map((r, i) => ({ ...r, importHash: status[i].hash, conceptId: conceptIds[i], duplicate: status[i].duplicate }))
       .filter((r) => !r.duplicate);
 
+    if (
+      !Array.isArray(replaceManual) ||
+      replaceManual.length > 500 ||
+      !replaceManual.every((c) => isId(c?.conceptId) && Number.isInteger(c.year) && Number.isInteger(c.month) && c.month >= 1 && c.month <= 12)
+    ) {
+      throw new Error("Datos no válidos.");
+    }
     const inserted = await insertTransactions(ctx, accountId, fresh);
+    // «Usar el extracto»: fuera lo escrito a mano en esas celdas (vuelve el automático).
+    for (const c of replaceManual) await setManualAmount(ctx, c.conceptId, c.year, c.month, null);
     // Plantilla en letras de columna (formato que entiende también la app en producción).
     const letter = (v: unknown) => (typeof v === "string" && /^[A-Z]{1,3}$/.test(v) ? v : null);
     const m = template?.mapping;

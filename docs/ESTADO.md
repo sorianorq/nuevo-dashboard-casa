@@ -275,6 +275,23 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   Hay copia previa de las tablas de los tres Balances (fuera del repositorio).
 - **El bloque «Ahorro» se llama «Inversión»** en toda la app (decisión de Ricardo); el
   «Ahorro» del Resumen (ingresos − gastos) no cambia.
+- **Modo manual en Balances, decidido por Ricardo el 18/11/2026:** botón «Modo manual» (no en
+  Desvío). En Real, cada celda de concepto es una casilla: lo escrito se guarda al salir o con
+  Intro como importe a mano (manda sobre el automático; vacía = vuelve el automático, o 0 en un
+  concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
+  Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
+  `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Extractos y lo escrito a mano:** al pulsar «Importar», si algún movimiento cae en un
+  concepto enlazado al banco y mes con importe escrito a mano, se listan esos casos y en cada
+  uno se elige «Mantener lo escrito» (por defecto) o «Usar el extracto» (se borra lo escrito
+  en esa celda tras importar). Decisión de Ricardo: uno por uno.
+- **Columna «Notas» en el Balance de Andrea** (ordenador), a la derecha de Concepto: es el
+  texto de periodicidad (`andrea_concepts.periodicity`), editable ahí mismo. La periodicidad
+  pasa a ser texto libre también en «Editar…» (antes un desplegable de 4 valores, que borraba
+  textos como «Día 20 c/trim»). "" = vaciado a propósito: ya no se recurre al texto antiguo
+  de `andrea_periodicity`.
+- **Script 11 ejecutado** (18/11/2026). Borrado probado con la sesión de Ricardo: un concepto
+  de prueba con 1 € escrito pasó su importe a «Otros (Ahorro)»; se limpió después.
 - **Borrar conceptos, decidido por Ricardo el 18/11/2026** (antes un concepto solo se
   archivaba): icono de papelera a la izquierda de cada concepto en Balances (tabla y móvil).
   Avisa de lo que tiene y adónde va; al confirmar, **todo lo asignado pasa a su «Otros»**:

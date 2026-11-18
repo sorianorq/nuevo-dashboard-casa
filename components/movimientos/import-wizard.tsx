@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { formatDate, formatSignedAmount } from "@/lib/format";
+import { formatAmount, formatDate, formatSignedAmount } from "@/lib/format";
 import { OWNER_LABEL, type BalanceTab, type Owner } from "@/lib/balance";
 import { ACCOUNT_TYPES, type Account, type AccountType, type ConceptOption } from "@/lib/labels";
 import {
@@ -25,6 +25,7 @@ import {
 import { readFileMatrix } from "@/lib/import/parse-file";
 import {
   addAccount,
+  checkImportConflicts,
   commitImport,
   loadTemplate,
   previewImport,
@@ -41,12 +42,17 @@ export type WizardBalance = {
 };
 
 type Step = 1 | 2 | 3;
+type Conflict = { conceptId: string; conceptName: string; year: number; month: number; written: number };
+const conflictKey = (c: { conceptId: string; year: number; month: number }) => `${c.conceptId}|${c.year}|${c.month}`;
 type Result = { inserted: number; duplicates: number; withoutConcept: number };
 
 const selectClass = "h-11 w-full min-w-0 rounded-xl border bg-surface px-3 text-sm hover:bg-accent";
 
 export function ImportWizard({ balances, initialTab }: { balances: WizardBalance[]; initialTab: BalanceTab }) {
   const [step, setStep] = useState<Step>(1);
+  // Choques con importes escritos a mano (null = sin comprobar) y la elección de cada uno.
+  const [conflicts, setConflicts] = useState<Conflict[] | null>(null);
+  const [useStatement, setUseStatement] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<BalanceTab>(initialTab);
   const [accountsByTab, setAccountsByTab] = useState(() =>
     Object.fromEntries(balances.map((b) => [b.tab, b.accounts])) as Record<BalanceTab, Account[]>,
@@ -168,6 +174,22 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
   const doImport = () =>
     start(async () => {
       if (!template) return;
+      // 1.º Comprobar si algún movimiento cae donde ya hay un importe escrito a mano.
+      if (conflicts === null) {
+        const check = await checkImportConflicts(
+          tab,
+          fresh.map((r) => ({ date: r.date, conceptId: choices[r.line] ?? null })),
+        );
+        if (!check.ok) return void toast.error(check.error);
+        if (check.conflicts.length) {
+          start(() => {
+            setConflicts(check.conflicts);
+            setUseStatement({});
+          });
+          return;
+        }
+      }
+      const replace = (conflicts ?? []).filter((c) => useStatement[conflictKey(c)]);
       const res = await commitImport(
         tab,
         accountId,
@@ -181,6 +203,7 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
           ...(r.legacyDescription ? { legacyDescription: r.legacyDescription } : {}),
           conceptId: choices[r.line] ?? null,
         })),
+        replace.map((c) => ({ conceptId: c.conceptId, year: c.year, month: c.month })),
       );
       if (!res.ok) return void toast.error(res.error);
       start(() => {
@@ -191,6 +214,7 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
 
   const restart = () => {
     setStep(1);
+    setConflicts(null);
     setPreview([]);
     setChoices({});
     setResult(null);
@@ -335,7 +359,14 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
           <div className="space-y-4">
             <Counts fresh={fresh.length} dups={dups.length} withoutConcept={withoutConcept} />
             {fresh.length > 0 ? (
-              <PreviewTable rows={fresh} choices={choices} onChoose={(line, id) => setChoices((c) => ({ ...c, [line]: id }))} />
+              <PreviewTable
+                rows={fresh}
+                choices={choices}
+                onChoose={(line, id) => {
+                  setChoices((c) => ({ ...c, [line]: id }));
+                  setConflicts(null);
+                }}
+              />
             ) : (
               <p className="rounded-card border bg-card px-6 py-10 text-center text-muted-foreground">
                 Todos los movimientos del archivo ya estaban importados.
@@ -361,12 +392,26 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
                 </ul>
               </details>
             )}
+            {conflicts && conflicts.length > 0 && (
+              <ConflictList conflicts={conflicts} useStatement={useStatement} onChange={setUseStatement} />
+            )}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-              <Button variant="outline" disabled={pending} onClick={() => setStep(1)}>
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() => {
+                  setConflicts(null);
+                  setStep(1);
+                }}
+              >
                 Atrás
               </Button>
               <Button size="lg" disabled={pending || fresh.length === 0} onClick={doImport}>
-                {pending ? "Importando…" : `Importar ${fresh.length} movimientos`}
+                {pending
+                  ? "Importando…"
+                  : conflicts?.length
+                    ? `Importar con estas elecciones (${fresh.length})`
+                    : `Importar ${fresh.length} movimientos`}
               </Button>
             </div>
           </div>
@@ -745,5 +790,71 @@ function PreviewTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+const MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+/**
+ * Conceptos y meses donde ya hay un importe escrito a mano: se elige, uno a
+ * uno, si se mantiene lo escrito o se usa el extracto (se borra lo escrito).
+ */
+function ConflictList({
+  conflicts,
+  useStatement,
+  onChange,
+}: {
+  conflicts: Conflict[];
+  useStatement: Record<string, boolean>;
+  onChange: (next: Record<string, boolean>) => void;
+}) {
+  return (
+    <section role="alert" aria-labelledby="conflicts-title" className="space-y-3 rounded-card border border-warning/50 bg-card p-4">
+      <div>
+        <h3 id="conflicts-title" className="font-bold">
+          {conflicts.length === 1 ? "Hay 1 concepto" : `Hay ${conflicts.length} conceptos`} con un importe escrito a mano en el mes
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Lo escrito a mano manda sobre los movimientos. Elige en cada uno qué quieres ver en el Balance.
+        </p>
+      </div>
+      <ul className="divide-y">
+        {conflicts.map((c) => {
+          const key = conflictKey(c);
+          const statement = Boolean(useStatement[key]);
+          return (
+            <li key={key} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="min-w-0 text-sm">
+                <span className="font-semibold">{c.conceptName}</span>
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {MONTHS_ES[c.month - 1]} {c.year} · escrito: <span className="tabular-nums">{formatAmount(c.written)}</span>
+                </span>
+              </span>
+              <span className="flex gap-1 rounded-xl bg-track p-1" role="radiogroup" aria-label={`${c.conceptName}, ${MONTHS_ES[c.month - 1]}`}>
+                {[
+                  { value: false, label: "Mantener lo escrito" },
+                  { value: true, label: "Usar el extracto" },
+                ].map((o) => (
+                  <button
+                    key={o.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={statement === o.value}
+                    onClick={() => onChange({ ...useStatement, [key]: o.value })}
+                    className={cn(
+                      "min-h-10 rounded-lg px-3 text-sm",
+                      statement === o.value ? "bg-surface font-bold shadow-sm" : "font-semibold text-muted-foreground",
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

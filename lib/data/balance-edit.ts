@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { ConceptKind, LinkSource } from "@/lib/calc/balance";
-import { SECTION_ORDER, type ConceptSection, type Periodicity } from "@/lib/labels";
+import { SECTION_ORDER, type ConceptSection } from "@/lib/labels";
 import { assertOwner, type DataContext } from "./session";
 import { fetchAll } from "./query";
 
@@ -163,7 +163,8 @@ export type NewConceptInput = {
   kind: "manual" | "linked";
   linkSource: LinkSource | null;
   parentId: string | null;
-  periodicity: Periodicity | null;
+  /** Texto libre (p. ej. «Día 5 c/mes»); "" = vacío. */
+  periodicity: string | null;
   /** Solo manual: importe para rellenar los 12 meses de `fillYear`. */
   fillAmount: number | null;
   fillYear: number;
@@ -246,7 +247,7 @@ export async function createBalanceConcept(ctx: DataContext, input: NewConceptIn
 export async function updateBalanceConcept(
   ctx: DataContext,
   conceptId: string,
-  input: { name: string; periodicity: Periodicity | null },
+  input: { name: string; periodicity: string | null },
 ) {
   const c = await loadConcept(ctx, conceptId);
   const name = cleanName(input.name);
@@ -517,4 +518,80 @@ export async function deleteBalanceConcept(ctx: DataContext, conceptId: string) 
     throw dbError(error);
   }
   return { target: p.target?.name ?? null };
+}
+
+/** Texto libre de un concepto (columna de notas / periodicidad). "" = vacío. */
+export async function setConceptNote(ctx: DataContext, conceptId: string, text: string) {
+  const c = await loadConcept(ctx, conceptId);
+  const clean = text.trim().replace(/\s+/g, " ");
+  if (clean.length > 60) throw new Error("El texto es demasiado largo (máximo 60 caracteres).");
+  const supabase = await createClient();
+  const { error } = await supabase.from("andrea_concepts").update({ periodicity: clean }).eq("id", c.id).eq("owner", ctx.owner);
+  if (error) throw dbError(error);
+}
+
+// --- Choques al cargar un extracto ------------------------------------------
+
+export type ManualConflict = {
+  conceptId: string;
+  conceptName: string;
+  year: number;
+  month: number;
+  /** Lo escrito a mano en esa celda. */
+  written: number;
+};
+
+/**
+ * Celdas (concepto enlazado al banco × mes) con importe escrito a mano: si se
+ * importan movimientos ahí, lo escrito manda y el extracto no se vería.
+ */
+export async function manualConflicts(
+  ctx: DataContext,
+  cells: { conceptId: string; year: number; month: number }[],
+): Promise<ManualConflict[]> {
+  assertOwner(ctx, ctx.owner);
+  const ids = [...new Set(cells.map((c) => c.conceptId))];
+  if (!ids.length) return [];
+  const supabase = await createClient();
+  const { data: concepts, error } = await supabase
+    .from("andrea_concepts")
+    .select("id, concept, kind, link_source")
+    .eq("owner", ctx.owner)
+    .in("id", ids);
+  if (error) throw dbError(error);
+  const linked = new Map(
+    (concepts ?? [])
+      .filter((c) => c.kind === "linked" && (c.link_source ?? "movimientos") === "movimientos")
+      .map((c) => [String(c.id), String(c.concept)]),
+  );
+  if (!linked.size) return [];
+  const years = [...new Set(cells.map((c) => c.year))];
+  const names = [...linked.values()].map((n) => `"${n.replace(/"/g, '\\"')}"`).join(",");
+  const rows = await fetchAll((a, b) =>
+    supabase
+      .from("andrea_balance")
+      .select("concept, concept_id, year, month, amount")
+      .eq("owner", ctx.owner)
+      .in("year", years)
+      .or(`concept_id.in.(${[...linked.keys()].join(",")}),and(concept_id.is.null,concept.in.(${names}))`)
+      .order("id")
+      .range(a, b),
+  );
+  const idOfName = new Map([...linked].map(([id, n]) => [n, id]));
+  const written = new Map<string, number>();
+  for (const r of rows) {
+    const id = r.concept_id ? String(r.concept_id) : idOfName.get(String(r.concept));
+    if (!id || !linked.has(id) || r.amount === null) continue;
+    const key = `${id}|${r.year}|${r.month}`;
+    written.set(key, Math.round(((written.get(key) ?? 0) + Number(r.amount)) * 100) / 100);
+  }
+  const seen = new Set<string>();
+  const out: ManualConflict[] = [];
+  for (const c of cells) {
+    const key = `${c.conceptId}|${c.year}|${c.month}`;
+    if (seen.has(key) || !written.has(key)) continue;
+    seen.add(key);
+    out.push({ conceptId: c.conceptId, conceptName: linked.get(c.conceptId) as string, year: c.year, month: c.month, written: written.get(key) as number });
+  }
+  return out.sort((x, y) => x.year - y.year || x.month - y.month || x.conceptName.localeCompare(y.conceptName, "es"));
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Link2, PenLine, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { AddConceptButton, BalanceEditor } from "@/components/balances/balance-editor";
+import { AddConceptButton, BalanceEditor, ManualModeButton } from "@/components/balances/balance-editor";
 import { BalanceMonthList } from "@/components/balances/balance-month-list";
 import { BalanceTable } from "@/components/balances/balance-table";
 import { VIEW_LABEL, parseView, type BalanceView } from "@/components/balances/shared";
@@ -172,6 +172,7 @@ async function Content({ searchParams }: { searchParams: SP }) {
                 Ver archivados
               </Link>
             )}
+            {view !== "desvio" && <ManualModeButton />}
             <AddConceptButton variant="primary" />
           </div>
           </div>
@@ -185,6 +186,7 @@ async function Content({ searchParams }: { searchParams: SP }) {
               view={view}
               currentMonth={ym.year === currentYm.year ? currentYm.month : null}
               showAll={showAll}
+              notes={ctx.owner === "andrea"}
             />
           </div>
         </>

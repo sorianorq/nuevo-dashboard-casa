@@ -50,6 +50,8 @@ export {
   moveBalanceConcept,
   setConceptArchived,
   previewDeleteConcept,
+  setConceptNote,
+  manualConflicts,
   deleteBalanceConcept,
   type DeletePreview,
   setConceptHidden,

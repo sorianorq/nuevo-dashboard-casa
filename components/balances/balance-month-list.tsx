@@ -6,7 +6,7 @@ import { formatAmount, formatSignedAmount } from "@/lib/format";
 import type { BalanceRow, BalanceSheet } from "@/lib/calc/balance";
 import { SECTION_LABEL, type ConceptSection } from "@/lib/labels";
 import { cellNote, deviationTone, valuesFor, type BalanceView } from "./shared";
-import { AddConceptButton, ConceptMenu, DeleteConceptButton, useBalanceEditor } from "./balance-editor";
+import { AddConceptButton, ConceptMenu, DeleteConceptButton, ManualCellInput, useBalanceEditor, useDisplaySheet } from "./balance-editor";
 
 const TOTAL_LABEL: Record<ConceptSection, string> = {
   ingresos: "Total ingresos",
@@ -16,7 +16,7 @@ const TOTAL_LABEL: Record<ConceptSection, string> = {
 
 /** Balance de un mes (móvil): conceptos en lista; en Real, presupuesto en gris debajo. */
 export function BalanceMonthList({
-  sheet,
+  sheet: savedSheet,
   month,
   view,
   showAll,
@@ -26,7 +26,8 @@ export function BalanceMonthList({
   view: BalanceView;
   showAll: boolean;
 }) {
-  const { openCell, comments, hidden } = useBalanceEditor();
+  const { openCell, comments, hidden, manual } = useBalanceEditor();
+  const sheet = useDisplaySheet(savedSheet);
   const i = month - 1;
   const visible = (r: BalanceRow) => showAll || !hidden.has(r.id);
 
@@ -61,7 +62,7 @@ export function BalanceMonthList({
   };
 
   const row = (r: BalanceRow, section: ConceptSection) => {
-    const editable = view === "real" && r.kind !== "subtotal";
+    const editable = view === "real" && r.kind !== "subtotal" && !manual;
     const comment = comments[r.id]?.[i];
     const content = (
       <>
@@ -78,7 +79,18 @@ export function BalanceMonthList({
           </span>
           {comment && <span className="mt-0.5 block text-xs text-muted-foreground">{comment}</span>}
         </span>
-        {amount(r, section, r.kind === "subtotal")}
+        {manual && r.kind !== "subtotal" && (view === "real" || view === "presupuesto") ? (
+          <ManualCellInput
+            row={r}
+            monthIndex={i}
+            field={view === "presupuesto" ? "budget" : "real"}
+            value={valuesFor(r, view)[i]}
+            label={`${r.name}${view === "presupuesto" ? " (presupuesto)" : ""}`}
+            className="h-11 w-28 shrink-0 text-base"
+          />
+        ) : (
+          amount(r, section, r.kind === "subtotal")
+        )}
       </>
     );
     return (

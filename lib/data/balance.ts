@@ -71,7 +71,8 @@ export async function getBalance(
     linkSource: SOURCES.includes(r.link_source) ? (r.link_source as LinkSource) : null,
     sortOrder: Number.isFinite(Number(r.sort_order)) ? Number(r.sort_order) : 9999,
     archived: Boolean(r.archived),
-    periodicity: typeof r.periodicity === "string" && r.periodicity.trim() ? r.periodicity.trim() : null,
+    // "" = vaciado a propósito: no se recurre a andrea_periodicity (versión anterior).
+    periodicity: typeof r.periodicity === "string" ? r.periodicity.trim() : null,
   }));
   const byId = new Map(concepts.map((c) => [c.id, c]));
   const linkedBy = (source: LinkSource) =>
@@ -191,7 +192,7 @@ export async function getBalance(
   for (const r of periodicityRows) {
     const id = conceptIdOf(r);
     const c = id ? byId.get(id) : undefined;
-    if (c && !c.periodicity && typeof r.periodicity === "string" && r.periodicity.trim()) c.periodicity = r.periodicity.trim();
+    if (c && c.periodicity === null && typeof r.periodicity === "string" && r.periodicity.trim()) c.periodicity = r.periodicity.trim();
   }
 
   const comments: Record<string, (string | null)[]> = {};

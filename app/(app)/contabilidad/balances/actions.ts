@@ -9,12 +9,15 @@ import {
   moveBalanceConcept,
   setCellComment,
   setConceptArchived,
+  setBudgets,
   setConceptHidden,
+  setConceptNote,
   setManualAmount,
   updateBalanceConcept,
 } from "@/lib/data";
 import { parseBalanceTab } from "@/lib/balance";
-import { PERIODICITIES, SECTION_ORDER, type ConceptSection, type Periodicity } from "@/lib/labels";
+import { SECTION_ORDER, type ConceptSection } from "@/lib/labels";
+import { todayIso } from "@/lib/months";
 import type { LinkSource } from "@/lib/calc/balance";
 
 /**
@@ -50,8 +53,8 @@ const isId = (v: unknown): v is string =>
   typeof v === "string" && (/^[0-9a-f-]{36}$/i.test(v) || /^\d{1,18}$/.test(v));
 const isInt = (v: unknown, min: number, max: number): v is number =>
   typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
-const isPeriodicity = (v: unknown): v is Periodicity | null =>
-  v === null || (typeof v === "string" && (PERIODICITIES as readonly string[]).includes(v));
+/** Periodicidad: texto libre corto («Mensual», «Día 5 c/mes»…). */
+const isPeriodicity = (v: unknown): v is string | null => v === null || (typeof v === "string" && v.length <= 60);
 
 export async function saveCell(
   tab: string,
@@ -84,7 +87,7 @@ export async function addConcept(
     kind: "manual" | "linked";
     linkSource: LinkSource | null;
     parentId: string | null;
-    periodicity: Periodicity | null;
+    periodicity: string | null;
     fillAmount: number | null;
     fillYear: number;
   },
@@ -111,7 +114,7 @@ export async function addConcept(
   });
 }
 
-export async function editConcept(tab: string, conceptId: string, input: { name: string; periodicity: Periodicity | null }) {
+export async function editConcept(tab: string, conceptId: string, input: { name: string; periodicity: string | null }) {
   return run(async () => {
     if (!isId(conceptId) || !input || typeof input.name !== "string" || !isPeriodicity(input.periodicity)) {
       throw new Error("Datos no válidos.");
@@ -170,5 +173,35 @@ export async function deleteConcept(tab: string, conceptId: string) {
     const result = await deleteBalanceConcept(ctx, conceptId);
     refresh();
     return result;
+  });
+}
+
+/** Columna de texto libre de un concepto (Balance de Andrea). */
+export async function saveConceptNote(tab: string, conceptId: string, text: string) {
+  return run(async () => {
+    if (!isId(conceptId) || typeof text !== "string" || text.length > 200) throw new Error("Datos no válidos.");
+    const ctx = await ctxFor(tab);
+    await setConceptNote(ctx, conceptId, text);
+    refresh();
+    return {};
+  });
+}
+
+/** Modo manual, vista Presupuesto: la partida de un concepto en un mes (null = quitarla). */
+export async function saveBudgetCell(tab: string, input: { conceptId: string; year: number; month: number; amount: number | null }) {
+  return run(async () => {
+    if (
+      !input ||
+      !isId(input.conceptId) ||
+      !isInt(input.year, 2000, 2100) ||
+      !isInt(input.month, 1, 12) ||
+      (input.amount !== null && (typeof input.amount !== "number" || !Number.isFinite(input.amount)))
+    ) {
+      throw new Error("Datos no válidos.");
+    }
+    const ctx = await ctxFor(tab);
+    await setBudgets(ctx, { year: input.year, month: input.month }, todayIso(), [{ conceptId: input.conceptId, amount: input.amount }]);
+    refresh();
+    return {};
   });
 }

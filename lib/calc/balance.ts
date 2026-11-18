@@ -222,3 +222,73 @@ export function buildBalanceSheet(input: BalanceInput): BalanceSheet {
 export function movementInSection(amount: number, section: ConceptSection): number {
   return section === "ingresos" ? amount : -amount;
 }
+
+/**
+ * Vuelve a calcular subtotales, totales de bloque, desvíos y resultado a
+ * partir de las filas de concepto (para ver al momento lo que se escribe en
+ * el modo manual, antes de que llegue la hoja guardada).
+ */
+export function recalcSheet(sheet: BalanceSheet): BalanceSheet {
+  const leaf = (r: BalanceRow): BalanceRow => ({ ...r, deviation: deviationOf(r.real, r.budget, sheet.monthsElapsed) });
+  const blocks = sheet.blocks.map((b) => {
+    const rows = b.rows.map((r) => {
+      if (r.kind !== "subtotal") return leaf(r);
+      const children = r.children.map(leaf);
+      return {
+        ...r,
+        children,
+        real: sumValues(children.map((c) => c.real)),
+        budget: sumValues(children.map((c) => c.budget)),
+        deviation: sumValues(children.map((c) => c.deviation)),
+      };
+    });
+    const total: BalanceTotals = {
+      real: sumValues(rows.map((r) => r.real)),
+      budget: sumValues(rows.map((r) => r.budget)),
+      deviation: sumValues(rows.map((r) => r.deviation)),
+    };
+    return { ...b, rows, total };
+  });
+  const [ing, gas, aho] = blocks.map((b) => b.total);
+  const combine = (key: keyof BalanceTotals) =>
+    ing[key].map((x, i) => {
+      const parts = [x, gas[key][i], aho[key][i]];
+      if (parts.every((p) => p === null)) return null;
+      return round2((x ?? 0) - (gas[key][i] ?? 0) - (aho[key][i] ?? 0));
+    });
+  return { ...sheet, blocks, result: { real: combine("real"), budget: combine("budget"), deviation: combine("deviation") } };
+}
+
+/**
+ * Hoja con celdas cambiadas a mano (modo manual). `real`: importe escrito
+ * (null = quitarlo: vuelve el automático, o 0 en un concepto manual ya
+ * empezado); `budget`: partida del mes (null = sin partida).
+ */
+export function applyCellEdits(
+  sheet: BalanceSheet,
+  edits: { rowId: string; month: number; field: "real" | "budget"; value: number | null }[],
+): BalanceSheet {
+  if (!edits.length) return sheet;
+  const patch = (r: BalanceRow): BalanceRow => {
+    const mine = edits.filter((e) => e.rowId === r.id);
+    if (!mine.length) return r;
+    const real = [...r.real];
+    const budget = [...r.budget];
+    const manualOverride = [...r.manualOverride];
+    for (const e of mine) {
+      if (e.field === "budget") budget[e.month] = e.value;
+      else if (e.value !== null) {
+        real[e.month] = e.value;
+        manualOverride[e.month] = r.kind === "linked";
+      } else {
+        real[e.month] = r.kind === "linked" ? r.automatic[e.month] : e.month < sheet.monthsElapsed ? 0 : null;
+        manualOverride[e.month] = false;
+      }
+    }
+    return { ...r, real, budget, manualOverride };
+  };
+  return recalcSheet({
+    ...sheet,
+    blocks: sheet.blocks.map((b) => ({ ...b, rows: b.rows.map((r) => ({ ...patch(r), children: r.children.map(patch) })) })),
+  });
+}

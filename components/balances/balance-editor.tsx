@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useContext, useState, useTransition } from "react";
+import { createContext, useContext, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Archive, ArchiveRestore, Eye, EyeOff, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Archive, ArchiveRestore, Eye, EyeOff, Keyboard, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatAmount, formatMonth } from "@/lib/format";
-import type { BalanceRow, LinkSource } from "@/lib/calc/balance";
+import { applyCellEdits, type BalanceRow, type BalanceSheet, type LinkSource } from "@/lib/calc/balance";
 import {
   LINK_SOURCE_LABEL,
   PERIODICITIES,
@@ -32,7 +32,6 @@ import {
   SECTION_LABEL,
   SECTION_ORDER,
   type ConceptSection,
-  type Periodicity,
 } from "@/lib/labels";
 import {
   addConcept,
@@ -42,7 +41,9 @@ import {
   hideConcept,
   moveConcept,
   previewDelete,
+  saveBudgetCell,
   saveCell,
+  saveConceptNote,
 } from "@/app/(app)/contabilidad/balances/actions";
 import type { DeletePreview } from "@/lib/data/balance-edit";
 
@@ -58,7 +59,15 @@ type EditorState = {
   openCell: (row: BalanceRow, monthIndex: number) => void;
   openNewConcept: (section?: ConceptSection) => void;
   openEditConcept: (row: BalanceRow) => void;
+  /** Modo manual: las celdas son casillas para escribir. */
+  manual: boolean;
+  setManual: (on: boolean) => void;
+  edits: CellEdit[];
+  /** Guarda lo escrito en una celda (y lo muestra ya, con los totales recalculados). */
+  saveManualCell: (row: BalanceRow, monthIndex: number, field: "real" | "budget", value: number | null) => void;
 };
+
+type CellEdit = { rowId: string; month: number; field: "real" | "budget"; value: number | null };
 
 const EditorContext = createContext<EditorState | null>(null);
 
@@ -105,6 +114,23 @@ export function BalanceEditor({
 }) {
   const [cell, setCell] = useState<{ row: BalanceRow; monthIndex: number } | null>(null);
   const [concept, setConcept] = useState<{ mode: "new"; section: ConceptSection } | { mode: "edit"; row: BalanceRow } | null>(null);
+  const [manual, setManual] = useState(false);
+  const [edits, setEdits] = useState<CellEdit[]>([]);
+
+  const saveManualCell: EditorState["saveManualCell"] = (row, monthIndex, field, value) => {
+    const edit: CellEdit = { rowId: row.id, month: monthIndex, field, value };
+    const same = (e: CellEdit) => e.rowId === edit.rowId && e.month === edit.month && e.field === edit.field;
+    setEdits((prev) => [...prev.filter((e) => !same(e)), edit]);
+    void (async () => {
+      const res =
+        field === "real"
+          ? await saveCell(tab, { conceptId: row.id, year, month: monthIndex + 1, amount: value, comment: comments[row.id]?.[monthIndex] ?? "" })
+          : await saveBudgetCell(tab, { conceptId: row.id, year, month: monthIndex + 1, amount: value });
+      if (!res.ok) toast.error(`${row.name}: ${res.error}`);
+      // Llega la hoja guardada (refresh): se quita la edición local.
+      setEdits((prev) => prev.filter((e) => !(same(e) && e.value === value)));
+    })();
+  };
 
   const value: EditorState = {
     tab,
@@ -116,6 +142,10 @@ export function BalanceEditor({
     openCell: (row, monthIndex) => setCell({ row, monthIndex }),
     openNewConcept: (section = "gastos") => setConcept({ mode: "new", section }),
     openEditConcept: (row) => setConcept({ mode: "edit", row }),
+    manual,
+    setManual,
+    edits,
+    saveManualCell,
   };
 
   return (
@@ -266,10 +296,7 @@ function ConceptDialog({
   const [parentId, setParentId] = useState("");
   const [kind, setKind] = useState<"manual" | "linked">("linked");
   const [source, setSource] = useState<LinkSource>("movimientos");
-  const initialPeriodicity = (PERIODICITIES as readonly string[]).includes(editing?.periodicity ?? "")
-    ? (editing?.periodicity as Periodicity)
-    : "";
-  const [periodicity, setPeriodicity] = useState<Periodicity | "">(initialPeriodicity);
+  const [periodicity, setPeriodicity] = useState(editing?.periodicity ?? "");
   const [fill, setFill] = useState("");
   const [pending, start] = useTransition();
 
@@ -280,7 +307,7 @@ function ConceptDialog({
   const submit = () =>
     start(async () => {
       const res = editing
-        ? await editConcept(tab, editing.id, { name, periodicity: periodicity || null })
+        ? await editConcept(tab, editing.id, { name, periodicity: periodicity.trim() })
         : await addConcept(tab, {
             name,
             section,
@@ -405,20 +432,21 @@ function ConceptDialog({
               )}
             </>
           )}
-          <Field label="Periodicidad (opcional)" htmlFor="concept-periodicity">
-            <select
+          <Field label="Periodicidad o nota (opcional)" htmlFor="concept-periodicity">
+            <Input
               id="concept-periodicity"
-              className={selectClass}
+              list="concept-periodicity-options"
+              placeholder="Ej.: Mensual, Día 5 c/mes…"
               value={periodicity}
-              onChange={(e) => setPeriodicity(e.target.value as Periodicity | "")}
-            >
-              <option value="">Sin indicar</option>
+              maxLength={60}
+              onChange={(e) => setPeriodicity(e.target.value)}
+              className="h-11"
+            />
+            <datalist id="concept-periodicity-options">
               {PERIODICITIES.map((p) => (
-                <option key={p} value={p}>
-                  {PERIODICITY_LABEL[p]}
-                </option>
+                <option key={p} value={PERIODICITY_LABEL[p]} />
               ))}
-            </select>
+            </datalist>
           </Field>
         </form>
         <DialogFooter>
@@ -596,5 +624,125 @@ export function DeleteConceptButton({ row, className }: { row: BalanceRow; class
         </Dialog>
       )}
     </>
+  );
+}
+
+/** Hoja con lo que se acaba de escribir en modo manual (totales recalculados al momento). */
+export function useDisplaySheet(sheet: BalanceSheet): BalanceSheet {
+  const { edits } = useBalanceEditor();
+  return useMemo(() => applyCellEdits(sheet, edits), [sheet, edits]);
+}
+
+/** Icono para entrar y salir del modo manual. */
+export function ManualModeButton() {
+  const { manual, setManual } = useBalanceEditor();
+  return (
+    <Button
+      type="button"
+      variant={manual ? "default" : "outline"}
+      aria-pressed={manual}
+      onClick={() => setManual(!manual)}
+      title={manual ? "Salir del modo manual" : "Modo manual: escribir los importes en la tabla"}
+      className="h-11 rounded-xl px-3"
+    >
+      <Keyboard aria-hidden />
+      <span>{manual ? "Modo manual: activado" : "Modo manual"}</span>
+    </Button>
+  );
+}
+
+const toCellInput = (v: number | null) =>
+  v === null ? "" : v.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 2, useGrouping: false });
+
+/**
+ * Casilla de una celda en modo manual. Se guarda al salir de ella o con
+ * Intro; vacía = quitar lo escrito (vuelve el automático) o la partida.
+ */
+export function ManualCellInput({
+  row,
+  monthIndex,
+  field,
+  value,
+  label,
+  className,
+}: {
+  row: BalanceRow;
+  monthIndex: number;
+  field: "real" | "budget";
+  value: number | null;
+  label: string;
+  className?: string;
+}) {
+  const { saveManualCell } = useBalanceEditor();
+  const [text, setText] = useState(toCellInput(value));
+  const [shown, setShown] = useState(value);
+  // Si llega otro valor (guardado, o cambio de año), se muestra el nuevo.
+  if (shown !== value) {
+    setShown(value);
+    setText(toCellInput(value));
+  }
+  const parsed = parseAmount(text);
+  const invalid = Number.isNaN(parsed) || (field === "budget" && parsed !== null && parsed < 0);
+
+  const commit = () => {
+    if (invalid) return void toast.error(`${row.name}: importe no válido`);
+    const next = parsed === null ? null : Math.round(parsed * 100) / 100;
+    const current = field === "real" && !row.manualOverride[monthIndex] && row.kind === "linked" ? null : value;
+    // Sin cambios: no se guarda (en un automático, escribir su mismo importe tampoco).
+    if (next === value || (next === null && current === null)) return;
+    saveManualCell(row, monthIndex, field, next);
+  };
+
+  return (
+    <input
+      inputMode="decimal"
+      aria-label={label}
+      aria-invalid={invalid}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") {
+          setText(toCellInput(value));
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      className={cn(
+        "h-8 w-full min-w-0 rounded-md border bg-surface px-1.5 text-right text-[13px] tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        row.manualOverride[monthIndex] && field === "real" && "border-brand/50",
+        invalid && "border-warning",
+        className,
+      )}
+    />
+  );
+}
+
+/** Columna de texto libre de un concepto (Balance de Andrea). Se guarda al salir. */
+export function ConceptNoteInput({ row }: { row: BalanceRow }) {
+  const { tab } = useBalanceEditor();
+  const initial = row.periodicity ?? "";
+  const [text, setText] = useState(initial);
+  const [shown, setShown] = useState(initial);
+  if (shown !== initial) {
+    setShown(initial);
+    setText(initial);
+  }
+  const commit = async () => {
+    if (text.trim() === initial.trim()) return;
+    const res = await saveConceptNote(tab, row.id, text);
+    if (!res.ok) toast.error(res.error);
+  };
+  return (
+    <input
+      aria-label={`Nota de ${row.name}`}
+      value={text}
+      maxLength={60}
+      placeholder="—"
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => void commit()}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      className="h-8 w-full min-w-0 rounded-md border border-transparent bg-transparent px-1.5 text-[12px] text-muted-foreground outline-none hover:border-border focus-visible:border-border focus-visible:bg-surface focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+    />
   );
 }

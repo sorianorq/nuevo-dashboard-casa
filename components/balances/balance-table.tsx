@@ -7,7 +7,15 @@ import { formatAmount, formatCellRounded, formatCellSigned, formatSignedAmount }
 import { yearTotal, type BalanceRow, type BalanceSheet, type MonthValues } from "@/lib/calc/balance";
 import { SECTION_LABEL, type ConceptSection } from "@/lib/labels";
 import { cellNote, deviationTone, valuesFor, type BalanceView } from "./shared";
-import { AddConceptButton, ConceptMenu, DeleteConceptButton, useBalanceEditor } from "./balance-editor";
+import {
+  AddConceptButton,
+  ConceptMenu,
+  ConceptNoteInput,
+  DeleteConceptButton,
+  ManualCellInput,
+  useBalanceEditor,
+  useDisplaySheet,
+} from "./balance-editor";
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const TOTAL_LABEL: Record<ConceptSection, string> = {
@@ -18,11 +26,12 @@ const TOTAL_LABEL: Record<ConceptSection, string> = {
 
 /** Hoja anual (ordenador): concepto × enero–diciembre + total. */
 export function BalanceTable({
-  sheet,
+  sheet: savedSheet,
   year,
   view,
   currentMonth,
   showAll,
+  notes = false,
 }: {
   sheet: BalanceSheet;
   year: number;
@@ -31,8 +40,12 @@ export function BalanceTable({
   currentMonth: number | null;
   /** Mostrar también las filas ocultas por el usuario. */
   showAll: boolean;
+  /** Columna de texto libre junto al concepto (Balance de Andrea). */
+  notes?: boolean;
 }) {
-  const { openCell, comments, hidden } = useBalanceEditor();
+  const { openCell, comments, hidden, manual } = useBalanceEditor();
+  const sheet = useDisplaySheet(savedSheet);
+  const cols = notes ? 15 : 14;
   const visible = (r: BalanceRow) => showAll || !hidden.has(r.id);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -60,6 +73,7 @@ export function BalanceTable({
           const full = v === null ? "Sin dato" : signed || section === "resultado" ? formatSignedAmount(v) : formatAmount(v);
           const row = opts.row;
           const editable = Boolean(row && view === "real" && row.kind !== "subtotal");
+          const typing = Boolean(manual && row && row.kind !== "subtotal" && (view === "real" || view === "presupuesto"));
           const override = row && view === "real" && row.manualOverride[i];
           const comment = row && view === "real" ? comments[row.id]?.[i] : null;
           const title = row && view === "real" ? [full, cellNote(row, i), comment].filter(Boolean).join(" · ") : full;
@@ -76,7 +90,16 @@ export function BalanceTable({
                 opts.strong && "font-extrabold",
               )}
             >
-              {editable && row ? (
+              {typing && row ? (
+                <ManualCellInput
+                  row={row}
+                  monthIndex={i}
+                  field={view === "presupuesto" ? "budget" : "real"}
+                  value={v}
+                  label={`${row.name}, ${MONTH_LABELS[i]}${view === "presupuesto" ? " (presupuesto)" : ""}`}
+                  className="w-[4.5rem]"
+                />
+              ) : editable && row ? (
                 <button
                   type="button"
                   onClick={() => openCell(row, i)}
@@ -140,12 +163,17 @@ export function BalanceTable({
               <span className="truncate">{row.name}</span>
             )}
             {row.kind === "linked" && <Link2 className="size-3.5 shrink-0 text-brand" aria-label="automático" />}
-            {row.periodicity && <span className="text-[11px] font-medium text-muted-foreground">{row.periodicity}</span>}
+            {!notes && row.periodicity && <span className="text-[11px] font-medium text-muted-foreground">{row.periodicity}</span>}
             {row.archived && <span className="text-[11px] font-semibold">(archivado)</span>}
             {hidden.has(row.id) && <span className="text-[11px] font-semibold text-muted-foreground">(oculto)</span>}
             <ConceptMenu row={row} className="ml-auto" />
           </span>
         </th>
+        {notes && (
+          <td className="border-b px-1 py-1">
+            <ConceptNoteInput row={row} />
+          </td>
+        )}
         {valueCells(valuesFor(row, view), section, { row, strong: isSub })}
       </tr>
     );
@@ -153,7 +181,7 @@ export function BalanceTable({
 
   return (
     <div className="overflow-x-auto rounded-card border bg-card">
-      <table className="w-full min-w-[1120px] border-collapse text-[13px]">
+      <table className={cn("w-full border-collapse text-[13px]", notes ? "min-w-[1260px]" : "min-w-[1120px]", manual && "min-w-[1300px]")}>
         <caption className="sr-only">
           Balance {year}, vista {view}. Cifras redondeadas al euro; el importe exacto aparece al pasar el ratón.
         </caption>
@@ -162,6 +190,11 @@ export function BalanceTable({
             <th scope="col" className="sticky left-0 z-10 min-w-[220px] border-b bg-surface px-4 py-3 text-left font-semibold">
               Concepto
             </th>
+            {notes && (
+              <th scope="col" className="min-w-[140px] border-b px-2 py-3 text-left font-semibold">
+                Notas
+              </th>
+            )}
             {MONTH_LABELS.map((m, i) => (
               <th
                 key={m}
@@ -186,7 +219,7 @@ export function BalanceTable({
               <tr>
                 <th
                   scope="colgroup"
-                  colSpan={14}
+                  colSpan={cols}
                   className="sticky left-0 border-b bg-brand-soft px-4 py-2 text-left text-xs font-extrabold tracking-[0.08em] text-brand uppercase"
                 >
                   {SECTION_LABEL[block.section]}
@@ -194,7 +227,7 @@ export function BalanceTable({
               </tr>
               {block.rows.length === 0 && (
                 <tr>
-                  <td colSpan={14} className="border-b px-4 py-3 text-muted-foreground">
+                  <td colSpan={cols} className="border-b px-4 py-3 text-muted-foreground">
                     Sin conceptos en este bloque.
                   </td>
                 </tr>
@@ -206,7 +239,7 @@ export function BalanceTable({
                   : []),
               ])}
               <tr>
-                <td colSpan={14} className="sticky left-0 border-b px-4">
+                <td colSpan={cols} className="sticky left-0 border-b px-4">
                   <AddConceptButton section={block.section} />
                 </td>
               </tr>
@@ -214,6 +247,7 @@ export function BalanceTable({
                 <th scope="row" className="sticky left-0 z-10 border-b bg-background px-4 py-2 text-left font-extrabold">
                   {TOTAL_LABEL[block.section]}
                 </th>
+                {notes && <td className="border-b" />}
                 {valueCells(valuesFor(block.total, view), block.section, { strong: true })}
               </tr>
             </Fragment>
@@ -222,6 +256,7 @@ export function BalanceTable({
             <th scope="row" className="sticky left-0 z-10 bg-brand-soft px-4 py-3 text-left font-extrabold">
               Resultado
             </th>
+            {notes && <td />}
             {valueCells(valuesFor(sheet.result, view), "resultado", { strong: true })}
           </tr>
         </tbody>
