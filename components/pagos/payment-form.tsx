@@ -304,6 +304,34 @@ export function PaymentForm(props: PaymentFormProps) {
         </div>
       </fieldset>
 
+      <PaymentMeans
+        amex={amex}
+        onAmex={setAmex}
+        methods={activeMethods}
+        methodId={methodId}
+        onMethod={setMethodId}
+        onCreated={(m) => {
+          setMethods((prev) => [...prev, m]);
+          setMethodId(m.id);
+        }}
+        idPrefix={idPrefix}
+        person={paidBy === "otros" ? me : paidBy}
+        pendingSlot={
+          <label className="flex min-h-11 items-center gap-3 px-3 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={pending}
+              onChange={(e) => {
+                setPending(e.target.checked);
+                setPendingTouched(true);
+              }}
+              className="size-5 accent-brand"
+            />
+            Pendiente de traspaso
+          </label>
+        }
+      />
+
       <fieldset className="space-y-1.5">
         <legend className={label}>
           Concepto{" "}
@@ -358,35 +386,6 @@ export function PaymentForm(props: PaymentFormProps) {
           </p>
         )}
       </fieldset>
-
-      <PaymentMeans
-        amex={amex}
-        onAmex={setAmex}
-        methods={activeMethods}
-        methodId={methodId}
-        onMethod={setMethodId}
-        onCreated={(m) => {
-          setMethods((prev) => [...prev, m]);
-          setMethodId(m.id);
-        }}
-        idPrefix={idPrefix}
-        person={paidBy === "otros" ? me : paidBy}
-      />
-
-      {amex && (
-        <label className="flex min-h-11 items-center gap-3 text-sm font-semibold">
-          <input
-            type="checkbox"
-            checked={pending}
-            onChange={(e) => {
-              setPending(e.target.checked);
-              setPendingTouched(true);
-            }}
-            className="size-5 accent-brand"
-          />
-          Pendiente de traspaso
-        </label>
-      )}
 
       <div className="space-y-1.5">
         <label htmlFor={`${idPrefix}-comment`} className={label}>
@@ -444,7 +443,7 @@ export function PaymentForm(props: PaymentFormProps) {
   );
 }
 
-/** Pagos personales: casilla «Pagado con AMEX» o medio de pago (con «+ Nuevo»). */
+/** Casilla Amex (con «Pendiente de traspaso») o, sin ella, medio de pago (con «+ Nuevo»). */
 function PaymentMeans({
   amex,
   onAmex,
@@ -454,8 +453,11 @@ function PaymentMeans({
   onCreated,
   idPrefix,
   person,
+  pendingSlot,
 }: {
   person: Person;
+  /** Casilla «Pendiente de traspaso»: se muestra bajo la casilla Amex cuando está marcada. */
+  pendingSlot: React.ReactNode;
   amex: boolean;
   onAmex: (v: boolean) => void;
   methods: PaymentMethod[];
@@ -498,6 +500,7 @@ function PaymentMeans({
           </span>
         </span>
       </label>
+      {amex && pendingSlot}
       {!amex && (
         <fieldset className="space-y-1.5">
           <legend className={label}>Medio de pago</legend>
