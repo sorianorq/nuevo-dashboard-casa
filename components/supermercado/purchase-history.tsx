@@ -11,7 +11,7 @@ import { PAYMENT_TYPE_LABEL, SUPER_CATEGORIES, SUPER_CATEGORY_NAME, type Payment
 
 const payLabel = (p: string | null) => (p && p in PAYMENT_TYPE_LABEL ? PAYMENT_TYPE_LABEL[p as PaymentType] : "Sin forma de pago");
 const payNote = (p: Purchase) =>
-  p.payment === "amex" ? (p.amexPaidBy ? "Amex · también en Pagos" : "Amex · sin gasto en Pagos") : payLabel(p.payment);
+  p.payment === "amex" ? (p.amexPaidBy ? "Amex · también en la lista de la Amex" : "Amex · sin gasto en la lista de la Amex") : payLabel(p.payment);
 
 /** Historial de compras del mes; al tocar una, su detalle. */
 export function PurchaseHistory({ purchases }: { purchases: Purchase[] }) {

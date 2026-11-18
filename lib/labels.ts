@@ -60,7 +60,7 @@ export const PERIODICITY_LABEL: Record<Periodicity, string> = {
 
 export const LINK_SOURCE_LABEL = {
   movimientos: "Movimientos del banco",
-  pagos: "Pagos",
+  pagos: "Gastos apuntados a mano",
   supermercado: "Supermercado",
 } as const;
 
@@ -94,3 +94,6 @@ export const PAYMENT_TYPE_LABEL: Record<PaymentType, string> = {
   amex: "Amex",
   otros: "Otros",
 };
+
+/** Valor del filtro «Cuenta» de Movimientos para ver solo los gastos apuntados a mano. */
+export const MANUAL_ACCOUNT = "a-mano";

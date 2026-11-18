@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SECTION_LABEL, SECTION_ORDER, type Account, type ConceptOption } from "@/lib/labels";
+import { MANUAL_ACCOUNT, SECTION_LABEL, SECTION_ORDER, type Account, type ConceptOption } from "@/lib/labels";
 
 const selectClass =
   "h-11 w-full min-w-0 rounded-xl border bg-surface px-3 text-sm text-foreground hover:bg-accent";
@@ -73,6 +73,7 @@ export function MovementFilters({
               {a.name}
             </option>
           ))}
+          <option value={MANUAL_ACCOUNT}>Gastos apuntados a mano</option>
         </select>
         <select
           aria-label="Concepto"

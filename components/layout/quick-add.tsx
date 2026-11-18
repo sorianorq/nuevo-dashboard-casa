@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaymentForm } from "@/components/pagos/payment-form";
 import type { QuickAddData } from "@/lib/data/pagos";
-import { quickAddDataAction } from "@/app/(app)/pagos/actions";
+import { quickAddDataAction } from "@/app/(app)/movimientos/pagos-actions";
 
 type QuickAddContextValue = { open: () => void };
 
@@ -57,7 +57,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
           <SheetHeader className="pt-6">
             <p className="eyebrow">Alta rápida</p>
             <SheetTitle className="text-[22px] font-extrabold tracking-tight">Nuevo gasto</SheetTitle>
-            <SheetDescription>Se apunta en tus Pagos; con AMEX, también en la American Express.</SheetDescription>
+            <SheetDescription>Sale en Movimientos; con AMEX, también en la pestaña Amex.</SheetDescription>
           </SheetHeader>
           <div className="px-4 pb-2">
             {state ? (

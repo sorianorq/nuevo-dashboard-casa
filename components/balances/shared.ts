@@ -37,6 +37,6 @@ export function cellNote(row: Pick<BalanceRow, "kind" | "linkSource" | "manualOv
   if (row.kind === "manual") return "Importe escrito a mano";
   if (row.manualOverride[monthIndex]) return "Escrito a mano: manda sobre el automático";
   if (row.linkSource === "supermercado") return "Desde Supermercado";
-  if (row.linkSource === "pagos") return "Desde Pagos";
+  if (row.linkSource === "pagos") return "Apuntado a mano";
   return "Desde movimientos del banco";
 }

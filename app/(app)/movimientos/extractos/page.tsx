@@ -9,14 +9,14 @@ import { ImportWizard, type WizardBalance } from "@/components/movimientos/impor
 import { getDataContext, listAccounts, listConcepts } from "@/lib/data";
 import type { BalanceTab, Owner } from "@/lib/balance";
 
-export const metadata: Metadata = { title: "Cargar extracto" };
+export const metadata: Metadata = { title: "Extractos" };
 
-type SP = PageProps<"/contabilidad/movimientos/cargar">["searchParams"];
+type SP = PageProps<"/movimientos/extractos">["searchParams"];
 
-export default function CargarPage(props: PageProps<"/contabilidad/movimientos/cargar">) {
+export default function ExtractosPage(props: PageProps<"/movimientos/extractos">) {
   return (
     <>
-      <PageHeader eyebrow="Movimientos" title="Cargar extracto" />
+      <PageHeader eyebrow="Movimientos" title="Extractos" />
       <Suspense fallback={<PageSkeleton />}>
         <Content searchParams={props.searchParams} />
       </Suspense>
@@ -46,7 +46,7 @@ async function Content({ searchParams }: { searchParams: SP }) {
         <BalanceSwitcher role={ctx.role} person={ctx.person} tab={ctx.tab} showTabs={false} />
       )}
       <Link
-        href={`/contabilidad/movimientos${ctx.tab === "personal" ? "?balance=personal" : ""}`}
+        href={`/movimientos${ctx.tab === "personal" ? "?balance=personal" : ""}`}
         className="mb-3 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
       >
         <ArrowLeft className="size-4" aria-hidden />

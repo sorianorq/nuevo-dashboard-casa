@@ -231,7 +231,7 @@ function PurchaseForm({
             </div>
             {payment === "amex" && (
               <div className="space-y-1.5 pt-1">
-                <p className="text-xs font-semibold text-brand">Se añadirá también en Pagos · Amex (Casa › Compra).</p>
+                <p className="text-xs font-semibold text-brand">Se añadirá también en Movimientos · Amex (Casa › Compra).</p>
                 <label htmlFor="p-paidby" className="text-xs font-bold text-muted-foreground">
                   Pagado por
                 </label>

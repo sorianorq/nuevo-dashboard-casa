@@ -8,11 +8,11 @@ import { NAV, isActive, type NavSection } from "@/lib/nav";
 import { NavIcon } from "./nav-icon";
 import { useQuickAdd } from "./quick-add";
 
-/** Barra inferior del móvil: Resumen · Contabilidad · ➕ · Súper · Pagos. */
+/** Barra inferior del móvil: Resumen · Contabilidad · ➕ · Súper · Movimientos. */
 export function BottomNav() {
   const pathname = usePathname();
   const quickAdd = useQuickAdd();
-  const [resumen, contabilidad, supermercado, pagos] = NAV;
+  const [resumen, contabilidad, supermercado, movimientos] = NAV;
 
   return (
     <nav
@@ -33,7 +33,7 @@ export function BottomNav() {
           </button>
         </li>
         <Item section={supermercado} pathname={pathname} />
-        <Item section={pagos} pathname={pathname} />
+        <Item section={movimientos} pathname={pathname} />
       </ul>
     </nav>
   );

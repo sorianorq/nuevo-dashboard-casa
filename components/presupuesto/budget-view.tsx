@@ -234,10 +234,12 @@ function sourceLink(tab: string, month: string, l: BudgetLine): { href: string; 
   const qs = (o: Record<string, string>) => new URLSearchParams(o).toString();
   const balance: Record<string, string> = tab === "personal" ? { balance: "personal" } : {};
   if (l.linkSource === "movimientos") {
-    return { href: `/contabilidad/movimientos?${qs({ ...balance, concepto: l.conceptId, mes: month })}`, label: "Ver movimientos" };
+    return { href: `/movimientos?${qs({ ...balance, concepto: l.conceptId, mes: month })}`, label: "Ver movimientos" };
   }
   if (l.linkSource === "supermercado") return { href: `/supermercado?${qs({ mes: month })}`, label: "Ver Supermercado" };
-  if (l.linkSource === "pagos") return { href: `/pagos?${qs({ ver: "amex", mes: month })}`, label: "Ver Pagos · Amex" };
+  if (l.linkSource === "pagos") {
+    return { href: `/movimientos?${qs({ ...balance, cuenta: "a-mano", concepto: l.conceptId, mes: month })}`, label: "Ver gastos a mano" };
+  }
   return { href: `/contabilidad/balances?${qs({ ...balance, mes: month })}`, label: "Ver en Balances (importe a mano)" };
 }
 

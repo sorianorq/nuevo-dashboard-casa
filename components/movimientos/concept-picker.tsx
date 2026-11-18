@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { SECTION_LABEL, SECTION_ORDER, type ConceptSection } from "@/lib/labels";
-import { newConcept } from "@/app/(app)/contabilidad/movimientos/actions";
+import { newConcept } from "@/app/(app)/movimientos/actions";
 import { useConcepts } from "./concepts-context";
 
 /**

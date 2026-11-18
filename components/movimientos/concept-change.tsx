@@ -16,7 +16,7 @@ import {
   applyToSimilar,
   changeConcept,
   type SimilarTx,
-} from "@/app/(app)/contabilidad/movimientos/actions";
+} from "@/app/(app)/movimientos/actions";
 import { useConcepts } from "./concepts-context";
 
 type Pending = { conceptId: string; conceptName: string; similar: SimilarTx[] };

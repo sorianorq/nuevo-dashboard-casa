@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { isOwner, isPerson, OWNERS, type Owner, type Person } from "@/lib/balance";
+import { isOwner, isPerson, OWNER_LABEL, OWNERS, type Owner, type Person } from "@/lib/balance";
 import {
   isPaidBy,
   round2,
@@ -179,29 +179,6 @@ export async function getAmex(ym: YearMonth): Promise<AmexData> {
   };
 }
 
-export type ConceptSpend = { key: string; conceptId: string | null; amount: number; budget: number | null };
-
-export type PersonalData = {
-  /** Vista: Casa (gastos apuntados al Balance de Casa) o una persona. */
-  person: Owner;
-  /** Gastos del mes (de la persona, o con concepto de Casa). */
-  month: Payment[];
-  spent: number;
-  /** Presupuesto del mes de sus conceptos de Pagos (null = sin presupuesto). */
-  budget: number | null;
-  /** Gastado en sus conceptos con presupuesto (lo que se compara con él). */
-  spentBudgeted: number;
-  byConcept: ConceptSpend[];
-  /** Medios de pago del formulario (los de quien apunta). */
-  methods: PaymentMethod[];
-  /** Nombre de cada medio de pago que sale en la lista (de cualquier persona visible). */
-  methodNames: Record<string, string>;
-  concepts: PagosConcept[];
-  conceptsComplete: boolean;
-  refs: Record<string, ConceptRef>;
-  history: { description: string; conceptId: string; date: string }[];
-};
-
 /** Medios de pago de una persona (los archivados solo si se usan). */
 async function paymentMethods(person: Person): Promise<PaymentMethod[]> {
   const supabase = await createClient();
@@ -220,99 +197,66 @@ async function paymentMethods(person: Person): Promise<PaymentMethod[]> {
   }));
 }
 
-/** Ids de todos los conceptos de Casa (también los que no son de Pagos). */
-async function casaConceptIds(): Promise<string[]> {
+/** Ids de los conceptos de un Balance (también los que no son de Pagos). */
+async function conceptIdsOf(owner: Owner): Promise<Set<string>> {
   const supabase = await createClient();
   const rows = await fetchAll((a, b) =>
-    supabase.from("andrea_concepts").select("id").eq("owner", "casa").order("id").range(a, b),
+    supabase.from("andrea_concepts").select("id").eq("owner", owner).order("id").range(a, b),
   );
-  return rows.map((r) => String(r.id));
+  return new Set(rows.map((r) => String(r.id)));
 }
 
+/** Gasto apuntado a mano, listo para mezclarlo con los movimientos del banco. */
+export type ManualRow = {
+  payment: Payment;
+  /** Cómo se pagó: «Amex», el medio de pago o «Efectivo»; en Casa, con quién pagó delante. */
+  means: string;
+  /** Nombre del concepto (del Balance de la pestaña) o null si no tiene. */
+  concept: string | null;
+};
+
 /**
- * Pagos de una vista (Pagos · Casa / <persona>). Las compras del Súper
- * pagadas con Amex no entran: cuentan en Supermercado.
- *  - persona: sus pagos con tarjeta, efectivo… (`wallet` = la persona) y los
- *    que pagó con la Amex;
- *  - Casa: los gastos con concepto del Balance de Casa, pagara quien pagara
- *    (los que RLS deja ver).
- * `me` es quien apunta: sus medios de pago van al formulario.
+ * Gastos apuntados a mano (`amex_expenses`) de un Balance en un mes, para la
+ * lista de Movimientos. Cada gasto sale en una sola pestaña:
+ *  - con concepto: en la del Balance de su concepto;
+ *  - sin concepto: en la de quien lo pagó (los antiguos «otros», en Casa),
+ *    que es el Balance que propone el formulario.
+ * Los de la Amex salen además en la pestaña Amex.
+ * Las compras del Súper (`purchase_id`) no entran: cuentan en Supermercado.
  */
-export async function getPersonalPayments(ctx: DataContext, ym: YearMonth, view: Owner, me: Person): Promise<PersonalData> {
-  if (!ctx.allowedOwners.includes(view)) throw new Error("Balance no permitido para este usuario");
-  if (!ctx.allowedOwners.includes(me)) throw new Error("Balance no permitido para este usuario");
+export async function listManualPayments(ctx: DataContext, ym: YearMonth, owner: Owner): Promise<ManualRow[]> {
+  if (!ctx.allowedOwners.includes(owner)) throw new Error("Balance no permitido para este usuario");
   const supabase = await createClient();
-  const visiblePeople = ctx.allowedOwners.filter((o): o is Person => isPerson(o));
-  const [rawRows, casaIds, methodLists, { concepts, complete }, history, budgets] = await Promise.all([
-    fetchAll((a, b) => {
-      const q = supabase.from("amex_expenses").select(COLUMNS);
-      return (view === "casa" ? q.not("concept_id", "is", null) : q.or(`wallet.eq.${view},and(wallet.eq.amex,paid_by.eq.${view})`))
+  const people = ctx.allowedOwners.filter((o): o is Person => isPerson(o));
+  const [rows, ids, methodLists] = await Promise.all([
+    fetchAll((a, b) =>
+      supabase
+        .from("amex_expenses")
+        .select(COLUMNS)
         .is("purchase_id", null)
         .gte("expense_date", monthStart(ym))
         .lte("expense_date", monthEnd(ym))
         .order("id")
-        .range(a, b);
-    }),
-    view === "casa" ? casaConceptIds() : Promise.resolve([] as string[]),
-    Promise.all((view === "casa" ? visiblePeople : [view as Person]).map(async (p) => [p, await paymentMethods(p)] as const)),
-    listPagosConcepts(ctx),
-    suggestionHistory(),
-    fetchAll((a, b) =>
-      supabase
-        .from("monthly_budgets")
-        .select("id, concept_id, budget_amount")
-        .eq("owner", view)
-        .eq("year", ym.year)
-        .eq("month", ym.month)
-        .order("id")
         .range(a, b),
     ),
+    conceptIdsOf(owner),
+    Promise.all(people.map((p) => paymentMethods(p))),
   ]);
 
-  const casa = new Set(casaIds);
-  const rows = view === "casa" ? rawRows.filter((r) => casa.has(String(r.concept_id))) : rawRows;
-  const month = rows
+  const methodName = new Map(methodLists.flat().map((m) => [m.id, m.name]));
+  const mine = rows
     .map(toPayment)
-    .sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description, "es"));
+    .filter((p) => (p.conceptId ? ids.has(p.conceptId) : (p.paidBy === "otros" || p.paidBy === null ? "casa" : p.paidBy) === owner));
+  const { concepts } = await listPagosConcepts(ctx);
+  const refs = await conceptRefs(ctx, concepts, mine.map((p) => p.conceptId).filter((id): id is string => id !== null));
 
-  const own = new Set(concepts.filter((c) => c.owner === view).map((c) => c.id));
-  const budgetOf = new Map<string, number>();
-  for (const b of budgets) {
-    const id = b.concept_id ? String(b.concept_id) : null;
-    if (id && own.has(id)) budgetOf.set(id, round2((budgetOf.get(id) ?? 0) + num(b.budget_amount)));
-  }
-
-  const spend = new Map<string, ConceptSpend>();
-  for (const p of month) {
-    const key = p.conceptId ?? "__none";
-    const s = spend.get(key) ?? { key, conceptId: p.conceptId, amount: 0, budget: p.conceptId ? (budgetOf.get(p.conceptId) ?? null) : null };
-    s.amount = round2(s.amount + p.amount);
-    spend.set(key, s);
-  }
-  for (const [id, budget] of budgetOf) if (!spend.has(id)) spend.set(id, { key: id, conceptId: id, amount: 0, budget });
-
-  const budget = budgetOf.size ? round2([...budgetOf.values()].reduce((s, v) => s + v, 0)) : null;
-  const spentBudgeted = round2(month.filter((p) => p.conceptId && budgetOf.has(p.conceptId)).reduce((s, p) => s + p.amount, 0));
-  const ids = month.map((p) => p.conceptId).filter((id): id is string => id !== null);
-
-  const methodNames: Record<string, string> = {};
-  for (const [, list] of methodLists) for (const m of list) methodNames[m.id] = m.name;
-  const methods = methodLists.find(([p]) => p === me)?.[1] ?? (await paymentMethods(me));
-
-  return {
-    person: view,
-    month,
-    spent: round2(month.reduce((s, p) => s + p.amount, 0)),
-    budget,
-    spentBudgeted,
-    byConcept: [...spend.values()].sort((a, b) => b.amount - a.amount || (b.budget ?? 0) - (a.budget ?? 0)),
-    methods,
-    methodNames,
-    concepts,
-    conceptsComplete: complete,
-    refs: await conceptRefs(ctx, concepts, ids),
-    history,
-  };
+  return mine
+    .sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description, "es"))
+    .map((p) => {
+      const how = p.wallet === "amex" ? "Amex" : ((p.paymentMethodId && methodName.get(p.paymentMethodId)) ?? "Sin medio de pago");
+      const who = p.paidBy && p.paidBy !== "otros" && p.paidBy !== owner ? `${OWNER_LABEL[p.paidBy]} · ` : "";
+      return { payment: p, means: who + how, concept: p.conceptId ? (refs[p.conceptId]?.name ?? null) : null };
+    });
 }
 
 export type QuickAddData = {

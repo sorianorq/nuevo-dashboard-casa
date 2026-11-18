@@ -8,7 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate, formatSignedAmount } from "@/lib/format";
 import { FLOWS, type Flow, type Transaction } from "@/lib/labels";
-import { changeFlow } from "@/app/(app)/contabilidad/movimientos/actions";
+import { changeFlow } from "@/app/(app)/movimientos/actions";
 import { ConceptPicker } from "./concept-picker";
 import { useConceptChange } from "./concept-change";
 import { useConcepts } from "./concepts-context";

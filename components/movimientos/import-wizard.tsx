@@ -29,7 +29,7 @@ import {
   loadTemplate,
   previewImport,
   type PreviewRow,
-} from "@/app/(app)/contabilidad/movimientos/actions";
+} from "@/app/(app)/movimientos/actions";
 import { ConceptPicker } from "./concept-picker";
 import { ConceptsProvider } from "./concepts-context";
 
@@ -387,14 +387,14 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
           </p>
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
             <Link
-              href={`/contabilidad/movimientos${tab === "personal" ? "?balance=personal" : ""}`}
+              href={`/movimientos${tab === "personal" ? "?balance=personal" : ""}`}
               className={buttonVariants()}
             >
               Ver movimientos
             </Link>
             {result.withoutConcept > 0 && (
               <Link
-                href={`/contabilidad/movimientos/revisar${tab === "personal" ? "?balance=personal" : ""}`}
+                href={`/movimientos/revisar${tab === "personal" ? "?balance=personal" : ""}`}
                 className={buttonVariants({ variant: "outline" })}
               >
                 Revisar sin concepto

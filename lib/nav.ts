@@ -4,7 +4,7 @@ export type NavIconName =
   | "resumen"
   | "contabilidad"
   | "supermercado"
-  | "pagos";
+  | "movimientos";
 
 export type NavChild = { label: string; href: string };
 
@@ -39,7 +39,6 @@ export const NAV: NavSection[] = [
     match: "/contabilidad",
     children: [
       { label: "Balances", href: "/contabilidad/balances" },
-      { label: "Movimientos", href: "/contabilidad/movimientos" },
       { label: "Presupuesto", href: "/contabilidad/presupuesto" },
     ],
   },
@@ -52,12 +51,12 @@ export const NAV: NavSection[] = [
     match: "/supermercado",
   },
   {
-    id: "pagos",
-    label: "Pagos",
-    shortLabel: "Pagos",
-    icon: "pagos",
-    href: "/pagos",
-    match: "/pagos",
+    id: "movimientos",
+    label: "Movimientos",
+    shortLabel: "Movimientos",
+    icon: "movimientos",
+    href: "/movimientos",
+    match: "/movimientos",
   },
 ];
 

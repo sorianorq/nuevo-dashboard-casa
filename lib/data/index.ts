@@ -63,11 +63,11 @@ export {
 } from "./supermarket-edit";
 export {
   getAmex,
-  getPersonalPayments,
   getQuickAddData,
+  listManualPayments,
   listPagosConcepts,
   type AmexData,
-  type PersonalData,
+  type ManualRow,
   type QuickAddData,
 } from "./pagos";
 export { savePayment, deletePayment, markTransferred, createPaymentMethod, type PaymentInput } from "./pagos-edit";

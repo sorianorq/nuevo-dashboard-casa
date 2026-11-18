@@ -24,7 +24,7 @@ import {
   deletePaymentAction,
   newPaymentMethodAction,
   savePaymentAction,
-} from "@/app/(app)/pagos/actions";
+} from "@/app/(app)/movimientos/pagos-actions";
 
 export type PaymentFormProps = {
   /**

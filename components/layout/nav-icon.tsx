@@ -1,6 +1,6 @@
 import {
+  ArrowLeftRight,
   BookOpenText,
-  CreditCard,
   LayoutDashboard,
   ShoppingBasket,
   type LucideProps,
@@ -11,7 +11,7 @@ const ICONS = {
   resumen: LayoutDashboard,
   contabilidad: BookOpenText,
   supermercado: ShoppingBasket,
-  pagos: CreditCard,
+  movimientos: ArrowLeftRight,
 } satisfies Record<NavIconName, unknown>;
 
 export function NavIcon({ name, ...props }: { name: NavIconName } & LucideProps) {

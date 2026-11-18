@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatAmount, formatDate, formatDayHeading } from "@/lib/format";
 import { conceptLabel, PAID_BY_LABEL, type PaidBy, type Payment } from "@/lib/calc/pagos";
 import type { AmexData } from "@/lib/data/pagos";
-import { markTransferredAction } from "@/app/(app)/pagos/actions";
+import { markTransferredAction } from "@/app/(app)/movimientos/pagos-actions";
 import { PaymentForm, type PaymentFormProps } from "./payment-form";
 
 type Shared = Omit<PaymentFormProps, "payment" | "onDone" | "onCancel" | "idPrefix">;

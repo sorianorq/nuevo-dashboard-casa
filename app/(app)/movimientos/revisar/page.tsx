@@ -20,9 +20,9 @@ import { buildSuggester } from "@/lib/import/suggest";
 
 export const metadata: Metadata = { title: "Revisar movimientos" };
 
-type SP = PageProps<"/contabilidad/movimientos/revisar">["searchParams"];
+type SP = PageProps<"/movimientos/revisar">["searchParams"];
 
-export default function RevisarPage(props: PageProps<"/contabilidad/movimientos/revisar">) {
+export default function RevisarPage(props: PageProps<"/movimientos/revisar">) {
   return (
     <>
       <PageHeader eyebrow="Movimientos" title="Revisar sin concepto" />
@@ -38,7 +38,7 @@ async function Content({ searchParams }: { searchParams: SP }) {
   const ctx = await getDataContext(sp);
   const skip = Math.max(0, Math.min(100000, Number(typeof sp.n === "string" ? sp.n : 0) || 0));
   const balanceQs = ctx.tab === "personal" ? "balance=personal" : "";
-  const back = `/contabilidad/movimientos${balanceQs ? `?${balanceQs}` : ""}`;
+  const back = `/movimientos${balanceQs ? `?${balanceQs}` : ""}`;
 
   const [tx, missing, concepts, accounts, history] = await Promise.all([
     nextWithoutConcept(ctx, skip),

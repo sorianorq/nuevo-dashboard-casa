@@ -236,19 +236,30 @@ y el rol admin. La importación sí está probada contra la base de datos real (
     borrar la compra lo actualiza. En el Balance cuenta una sola vez, en «Compra», porque los
     gastos con `purchase_id` ya se excluyen. Por defecto `paid_by = 'otros'` (Casa), con
     selector «Pagado por» en el formulario.
-- **Pagos en una sola pantalla, decidido por Ricardo el 18/11/2026** (cambio tras la fase 5):
-  - «Pagos» ya no tiene subsecciones: `/pagos` con selector **Casa · Ricardo · Andrea · Amex**
-    (`?ver=casa|ricardo|andrea|amex`; sin `ver`, la persona de la sesión). Cada rol ve
-    Casa, los Balances que puede ver y la Amex (Ricardo: Casa · Ricardo · Amex; admin: las 4).
-    No se tocan permisos. `/pagos/amex` y `/pagos/personales` redirigen (`next.config.ts`);
-  - **Casa** = gastos de `amex_expenses` con concepto del Balance de Casa (sin `purchase_id`),
-    pagara quien pagara, con el diseño de la vista de persona; cada fila dice quién pagó.
-    Solo los que RLS deja ver (un pago con la tarjeta personal de Andrea apuntado a Casa no
-    lo ve Ricardo). El alta desde Casa propone el Balance de Casa;
-  - el «+ Nuevo» medio de pago se crea para la persona del formulario (antes, la de la cookie
-    de admin). Probado con la sesión de Ricardo (390 y 1440 px) y con admin (390 px): mismas
-    cifras que antes (Ricardo 392,45 €, Andrea 719,08 €, Amex 1.167,99 € en noviembre);
-    alta y borrado de un gasto de prueba en Casa sin errores.
+- **Movimientos sustituye a Pagos, decidido por Ricardo el 18/11/2026** (cambio tras la fase 5;
+  sustituye a la pantalla única de Pagos con selector, que duró unas horas):
+  - menú: Resumen · Contabilidad (Balances, Presupuesto) · Supermercado · **Movimientos**.
+    Movimientos ya no está dentro de Contabilidad y la sección Pagos desaparece;
+  - `/movimientos`: pestañas **Casa · <persona> · Amex** (`?balance=personal`, `?ver=amex`;
+    admin elige la persona con su selector, como en Balances) y botón **Extractos**
+    (`/movimientos/extractos`, antes «Cargar extracto»). «Revisar» sigue en
+    `/movimientos/revisar` (solo movimientos del banco);
+  - Casa y la persona: **una sola lista** con los movimientos del banco y los gastos
+    apuntados a mano (`amex_expenses` sin `purchase_id`), por fecha, con la etiqueta
+    «A mano». Cada gasto a mano sale en una sola pestaña: la del Balance de su concepto; sin
+    concepto, la de quien pagó («otros», en Casa). Los de la Amex salen además en la pestaña
+    Amex. Filtros: «Cuenta» tiene «Gastos apuntados a mano»; «Ingresos» y «No cuentan» los
+    ocultan. Tocar uno abre el formulario de siempre (el de la Amex si se pagó con ella);
+  - el formulario de alta (➕) **se queda como estaba** (tarjetas del banco, efectivo y Amex),
+    por decisión de Ricardo, aunque un pago con tarjeta del banco puede quedar también en el
+    extracto;
+  - redirecciones en `next.config.ts`: `/contabilidad/movimientos/*`, `/pagos`,
+    `/pagos/amex`, `/pagos/personales`. El origen «pagos» de los conceptos se llama ahora
+    «Gastos apuntados a mano»;
+  - el «+ Nuevo» medio de pago se crea para la persona del formulario (no la de la cookie);
+  - probado (18/11/2026) con Ricardo (390 y 1440 px) y admin (390 px): Ricardo noviembre
+    5 a mano / 392,45 €, Andrea 16 a mano (como en Pagos); alta con ➕ en Casa, abrir desde la
+    lista y borrar, sin errores ni scroll horizontal.
 - **Pagos, decidido por Ricardo el 18/11/2026** (fase 4):
   - paga siempre **Andrea o Ricardo**; «otros» solo se conserva en los gastos antiguos (al
     editarlos se puede dejar, y entonces van a Casa). En Supermercado con Amex, «Pagado por»
@@ -333,9 +344,10 @@ y el rol admin. La importación sí está probada contra la base de datos real (
 app/login, app/sin-acceso              públicas / sin rol
 app/(app)/layout.tsx                   carcasa (menú y barra inferior)
 app/(app)/resumen                      Paso 2
-app/(app)/contabilidad/movimientos     Paso 3 (+ cargar/, revisar/, actions.ts)
-app/(app)/…                            Balances, Supermercado, Pagos (Amex y persona),
-                                       Presupuesto (fases 2–5)
+app/(app)/movimientos                  banco + gastos a mano + Amex (+ extractos/, revisar/,
+                                       actions.ts, pagos-actions.ts)
+app/(app)/contabilidad                 Balances y Presupuesto
+app/(app)/supermercado                 Supermercado
 lib/data/                              ÚNICO acceso a datos (session, summary, transactions,
                                        concepts, accounts, imports, query)
 lib/calc/summary.ts                    reglas del apartado 6 (puras)
