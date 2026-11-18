@@ -44,6 +44,19 @@ export function monthlyFlows(rows: TxRow[], months: YearMonth[]): MonthFlow[] {
   });
 }
 
+/**
+ * Acumulado del año hasta el mes elegido (enero..mes), con las mismas reglas
+ * que cada mes. `flows` debe incluir esos meses (la tendencia de 12 meses
+ * que acaba en el mes elegido siempre los tiene).
+ */
+export function yearToDate(flows: MonthFlow[], ym: YearMonth): Omit<MonthFlow, "ym"> {
+  const months = flows.filter((f) => f.ym.year === ym.year && f.ym.month <= ym.month);
+  const income = round2(months.reduce((s, f) => s + f.income, 0));
+  const expenses = round2(months.reduce((s, f) => s + f.expenses, 0));
+  const savings = round2(income - expenses);
+  return { income, expenses, savings, savingsRate: income > 0 ? savings / income : null };
+}
+
 /** Variación de la tasa de ahorro en puntos porcentuales; null si falta alguna tasa. */
 export function savingsRateDeltaPoints(current: MonthFlow, previous: MonthFlow): number | null {
   if (current.savingsRate === null || previous.savingsRate === null) return null;

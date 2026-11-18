@@ -8,6 +8,8 @@ import {
   formatSignedPercent,
 } from "@/lib/format";
 import { ymKey } from "@/lib/months";
+import { cn } from "@/lib/utils";
+import { yearToDate } from "@/lib/calc/summary";
 import { OWNER_LABEL, type Owner } from "@/lib/balance";
 import { AmexCard } from "./amex-card";
 import { ConceptSpend } from "./concept-spend";
@@ -29,6 +31,15 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
   const expenseChange = change(current.expenses, previous.expenses);
   const savingsDiff = current.savings - previous.savings;
   const totalSpend = summary.byConcept.reduce((s, r) => s + r.amount, 0);
+  // Acumulado de enero al mes elegido.
+  const ytd = yearToDate(summary.trend, ym);
+  const ytdNote = (value: string, cls?: string) => (
+    <>
+      Acumulado {ym.year}
+      <span className="hidden lg:inline">: </span>
+      <span className={cn("block lg:inline", cls ?? "font-bold text-foreground")}>{value}</span>
+    </>
+  );
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -36,6 +47,7 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
         <StatCard
           label="Ingresos"
           value={formatAmount(current.income)}
+          note={ytdNote(formatAmount(ytd.income))}
           footer={
             <Delta
               value={incomeChange}
@@ -48,6 +60,7 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
         <StatCard
           label="Gastos"
           value={formatAmount(current.expenses)}
+          note={ytdNote(formatAmount(ytd.expenses))}
           footer={
             <Delta
               value={expenseChange}
@@ -60,6 +73,7 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
         <StatCard
           label="Ahorro"
           value={formatAmount(current.savings)}
+          note={ytdNote(formatAmount(ytd.savings), ytd.savings < 0 ? "font-bold text-warning" : undefined)}
           valueClassName={current.savings < 0 ? "text-warning" : undefined}
           footer={
             <Delta
@@ -73,6 +87,7 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
         <StatCard
           label="Tasa de ahorro"
           value={current.savingsRate === null ? "—" : formatPercent(current.savingsRate)}
+          note={ytdNote(ytd.savingsRate === null ? "—" : formatPercent(ytd.savingsRate))}
           footer={
             <Delta
               value={summary.savingsRateDeltaPoints}
