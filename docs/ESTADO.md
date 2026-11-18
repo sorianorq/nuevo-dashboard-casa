@@ -95,21 +95,22 @@ y el rol admin. La importación sí está probada contra la base de datos real (
      de una compra se guarda con `concept_id` vacío. No cambia ninguna cifra (en el Balance
      esos gastos no cuentan; la compra cuenta por Supermercado). Cuando exista Casa › Compra
      (enlazado, origen Supermercado), las nuevas lo llevarán.
-7. **Fase 4 · Pagos.** Entrega 1 (American Express) **programada, sin probar el guardado**
-   (18/11/2026): datos clave del mes (gastado, pendiente de traspaso de todas las fechas, por
-   persona), pendientes con casillas y «Marcar como traspasados», filtros (buscar, pagado por,
-   concepto, solo pendientes), lista por día (móvil) y tabla (ordenador), formulario de alta
-   siempre visible a la izquierda en ordenador y en ventana en móvil; tocar un gasto lo edita
-   (o, si sale de una compra, lleva a Supermercado). Comprobado sin guardar con la sesión de
-   Ricardo: octubre y noviembre de 2026 = suma directa en la base de datos (total, por
-   persona, pendiente); filtros; 390 y 1440 px sin errores ni scroll horizontal.
-   Script 08 ejecutado por Ricardo, pero la API aún no ve la función. Al probar el alta
-   apareció la regla antigua `andrea_concepts_user_id_concept_key` = único (user_id,
-   concept): impide crear «Otros gastos» en Casa (Ricardo ya lo tiene en su Balance).
-   **Bloqueada por `supabase/sql/09_conceptos_unicos_por_balance.sql`** (lo ejecuta
-   Ricardo): pone única (owner, concept) como dice la especificación, quita la antigua y
-   recarga el esquema de la API. La prueba no dejó nada en la base de datos. Después: probar alta, edición, borrado y
-   traspasos. Entrega 2: Pagos personales (medio de pago, casilla AMEX, presupuesto).
+7. **Fase 4 · Pagos.** Entrega 1 (American Express) **hecha y probada** el 18/11/2026
+   (scripts 08 y 09 ejecutados por Ricardo): datos clave del mes (gastado, pendiente de
+   traspaso de todas las fechas, por persona), pendientes con casillas y «Marcar como
+   traspasados», filtros (buscar, pagado por, concepto, solo pendientes), lista por día
+   (móvil) y tabla (ordenador), formulario de alta siempre visible a la izquierda en
+   ordenador y en ventana en móvil; tocar un gasto lo edita (o, si sale de una compra, lleva
+   a Supermercado). Comprobado con la sesión de Ricardo: octubre y noviembre de 2026 = suma
+   directa en la base de datos (total, por persona, pendiente); filtros. Guardado probado
+   (390 px crear, 1440 px el resto): alta pagada por Ricardo en Casa → se creó Casa › «Otros
+   gastos» (se queda: es el concepto por defecto de Casa); editar a pagado por Andrea, Balance
+   de Andrea › Ocio, pendiente y comentario (Ricardo escribe en el Balance de Andrea sin
+   verlo); sugerencia «Ocio» al escribir la misma descripción; marcar como traspasado; borrar
+   → no queda el gasto. Sin errores.
+   - Script 09: la base de datos tenía aún la regla única antigua (user_id, concept); ahora
+     es (owner, concept), como en la especificación.
+   Siguiente: entrega 2: Pagos personales (medio de pago, casilla AMEX, presupuesto).
 8. Fase 5: Presupuesto y el alta rápida del ➕.
 
 ## 4. Hallazgos en los datos y en la app en producción

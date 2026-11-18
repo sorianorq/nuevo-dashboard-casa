@@ -43,6 +43,9 @@ grant execute on function public.fc_pagos_concepts() to authenticated;
 
 commit;
 
+-- Que la API de Supabase vea la función nueva sin esperar:
+notify pgrst, 'reload schema';
+
 -- ---------------------------------------------------------------------
 -- Comprobación (solo lectura): cuántos conceptos de Pagos hay por Balance
 -- (en el SQL Editor no hay sesión, así que aquí se cuenta sin la función)
