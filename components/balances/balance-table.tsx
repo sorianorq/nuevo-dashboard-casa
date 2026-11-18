@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { ChevronDown, Link2, PenLine } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatAmount, formatCellRounded, formatCellSigned, formatSignedAmount } from "@/lib/format";
 import { yearTotal, type BalanceRow, type BalanceSheet, type MonthValues } from "@/lib/calc/balance";
@@ -90,7 +90,6 @@ export function BalanceTable({
           const row = opts.row;
           const editable = Boolean(row && view === "real" && row.kind !== "subtotal");
           const typing = Boolean(manual && row && row.kind !== "subtotal" && (view === "real" || view === "presupuesto"));
-          const override = row && view === "real" && row.manualOverride[i];
           const comment = row && view === "real" ? comments[row.id]?.[i] : null;
           const title = row && view === "real" ? [full, cellNote(row, i), comment].filter(Boolean).join(" · ") : full;
           return (
@@ -122,7 +121,6 @@ export function BalanceTable({
                   aria-label={`${row.name}, ${MONTH_LABELS[i]}: ${full}${comment ? ", con comentario" : ""}. Editar`}
                   className="relative -mx-1 inline-flex min-h-8 items-center gap-0.5 rounded px-1 hover:bg-accent hover:text-brand"
                 >
-                  {override && <PenLine className="size-3 text-brand" aria-hidden />}
                   {text}
                   {comment && <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-brand" aria-hidden />}
                 </button>
@@ -179,7 +177,6 @@ export function BalanceTable({
             ) : (
               <span className="truncate">{row.name}</span>
             )}
-            {row.kind === "linked" && <Link2 className="size-3.5 shrink-0 text-brand" aria-label="automático" />}
             {!notes && row.periodicity && <span className="text-[11px] font-medium text-muted-foreground">{row.periodicity}</span>}
             {row.archived && <span className="text-[11px] font-semibold">(archivado)</span>}
             {hidden.has(row.id) && <span className="text-[11px] font-semibold text-muted-foreground">(oculto)</span>}

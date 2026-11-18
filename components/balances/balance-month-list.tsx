@@ -1,6 +1,6 @@
 "use client";
 
-import { Link2, MessageSquare, PenLine } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatAmount, formatSignedAmount } from "@/lib/format";
 import type { BalanceRow, BalanceSheet } from "@/lib/calc/balance";
@@ -69,10 +69,6 @@ export function BalanceMonthList({
         <span className={cn("min-w-0 flex-1 text-left", r.depth === 1 && "pl-4 text-[13px]", r.kind === "subtotal" && "font-extrabold")}>
           <span className="inline-flex flex-wrap items-center gap-x-1.5">
             <span className="break-words">{r.name}</span>
-            {r.kind === "linked" && <Link2 className="size-3.5 shrink-0 text-brand" aria-label="automático" />}
-            {view === "real" && r.manualOverride[i] && (
-              <PenLine className="size-3.5 shrink-0 text-brand" aria-label="escrito a mano" />
-            )}
             {comment && <MessageSquare className="size-3.5 shrink-0 text-brand" aria-label="con comentario" />}
             {r.archived && <span className="text-[11px] font-semibold">(archivado)</span>}
             {hidden.has(r.id) && <span className="text-[11px] font-semibold">(oculto)</span>}
