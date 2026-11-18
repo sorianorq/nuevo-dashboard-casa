@@ -63,14 +63,15 @@ y el rol admin. La importación sí está probada contra la base de datos real (
      0 nuevos y todo duplicado.
 5. **Fase 2 · Balances.** Entrega 1 (solo lectura) hecha el 18/11/2026; ver apartado 2.
    Falta:
-   - Ricardo añade `FC_ADMIN_EMAIL` / `FC_ADMIN_PASSWORD` a `.env.test.local` → probar rol
-     admin y comparar el Balance de Andrea con producción (criterio de la fase 2);
-   - entrega 2 **programada, sin probar el guardado**: clic en una celda → ventana con el
-     automático (y «Ver movimientos»), importe escrito a mano y comentario; menú «⋯» por
-     concepto (editar nombre y periodicidad, subir, bajar, ocultar, archivar/recuperar);
-     «+ Concepto» y «+ Añadir» por bloque; `?todos=1` muestra ocultos y archivados.
-     **Bloqueada por `supabase/sql/05_permisos_balances.sql`** (lo ejecuta Ricardo). Después:
-     probar cada acción con la sesión real y deshacer lo que se pruebe;
+   - **`FC_ADMIN_EMAIL` / `FC_ADMIN_PASSWORD` de `.env.test.local` son ahora los de Ricardo**
+     (mismo correo; entra con rol `ricardo`). Hacen falta los del usuario admin para probar el
+     rol admin y comparar el Balance de Andrea con producción (criterio de la fase 2);
+   - entrega 2 **hecha y probada** el 18/11/2026 (script 05 ejecutado por Ricardo), con la
+     sesión de `ricardo` y comprobando la base de datos en cada paso: importe a mano y
+     comentario (guardar y quitar), ocultar/mostrar, subir/bajar, periodicidad, renombrar
+     (ida y vuelta), alta de concepto manual con «rellenar año» y archivar. Todo se dejó como
+     estaba, salvo: la fila `balance_hidden` de Ricardo en `user_preferences` (lista vacía) y
+     el concepto archivado «Prueba Claude (borrar)» en el catálogo de Ricardo (sin importes);
    - también sin probar: guardar concepto, flujo, nueva cuenta o nuevo concepto en Movimientos.
 6. Fases 3–5: Supermercado, Pagos (Amex y personales), Presupuesto y el alta rápida del ➕.
 
