@@ -250,6 +250,24 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   Andrea** (la app avisa); decisión de Ricardo. Sumas de `andrea_balance` por año y bloque
   iguales antes y después. La app de producción tiene nombres fijos en su código: allí los
   renombrados pueden verse vacíos.
+- **Conceptos de Casa, según la lista de Ricardo (18/11/2026):** subtotales Total Ingresos
+  (Traspaso Ricardo, Traspaso Andrea, Otros ingresos, Plan Ahorro Sabadell), Suministros
+  (Comunidad, Electricidad, Sunflower, Agua, Verisure) y Suscripciones (Costco, Amex,
+  Vorwerk, Netflix, ChatGpt); sueltos Farmacia/Suplementos, Compra, Ocio, Amazon, Cosas de
+  Casa, Seguro Hogar, Otros gastos. Origen: banco, salvo Compra (Supermercado) y Otros gastos
+  (gastos a mano). Los 1.022 movimientos de Casa siguen sin concepto (se asignan en Revisar).
+- **Conceptos de Ricardo, según su lista (18/11/2026):** subtotales Total ingresos, Casa,
+  Gastos Financieros, Coche, Suscripciones, Salud/Belleza, Transporte y Ocio; los nombres
+  repetidos llevan su grupo entre paréntesis («Otros (Coche)», «Transferencias (gasto)»…).
+  Renombrados con sus movimientos: Indexa → Indexa común, Belleza → Peluquería, Salud →
+  Otros (Salud/Belleza), Gastos financieros → Otros gastos (financieros), Préstamo →
+  Préstamo Master, Seguro Coche → Seguro, Coche/Transporte/Ocio → Otros (…), Aportación a
+  Casa → Transferencias (gasto). Costco y Otras suscripciones se quedan en Suscripciones.
+  Archivados los subtotales vacíos Suministros y Gastos de Pagos. **Todos toman el importe
+  del banco** (antes Ocio, Deporte, Belleza, Compras, Coche y Otros gastos tenían origen
+  Pagos y sus 188 movimientos no contaban); los de Gastos tienen `pagos_visible` para el
+  formulario de gastos a mano. Comprobado: 456 movimientos con concepto, todos cuentan.
+  Hay copia previa de las tablas de los tres Balances (fuera del repositorio).
 - **El bloque «Ahorro» se llama «Inversión»** en toda la app (decisión de Ricardo); el
   «Ahorro» del Resumen (ingresos − gastos) no cambia.
 - **Movimientos sustituye a Pagos, decidido por Ricardo el 18/11/2026** (cambio tras la fase 5;
