@@ -1,10 +1,12 @@
-import Link from "next/link";
-import { ChevronRight, Link2, PenLine } from "lucide-react";
+"use client";
+
+import { Link2, MessageSquare, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatAmount, formatSignedAmount } from "@/lib/format";
 import type { BalanceRow, BalanceSheet } from "@/lib/calc/balance";
 import { SECTION_LABEL, type ConceptSection } from "@/lib/labels";
-import { cellHref, cellNote, deviationTone, valuesFor, type BalanceView } from "./shared";
+import { cellNote, deviationTone, valuesFor, type BalanceView } from "./shared";
+import { AddConceptButton, ConceptMenu, useBalanceEditor } from "./balance-editor";
 
 const TOTAL_LABEL: Record<ConceptSection, string> = {
   ingresos: "Total ingresos",
@@ -15,18 +17,18 @@ const TOTAL_LABEL: Record<ConceptSection, string> = {
 /** Balance de un mes (móvil): conceptos en lista; en Real, presupuesto en gris debajo. */
 export function BalanceMonthList({
   sheet,
-  year,
   month,
   view,
-  personal,
+  showAll,
 }: {
   sheet: BalanceSheet;
-  year: number;
   month: number;
   view: BalanceView;
-  personal: boolean;
+  showAll: boolean;
 }) {
+  const { openCell, comments, hidden } = useBalanceEditor();
   const i = month - 1;
+  const visible = (r: BalanceRow) => showAll || !hidden.has(r.id);
 
   const amount = (
     item: { real: (number | null)[]; budget: (number | null)[]; deviation: (number | null)[] },
@@ -59,32 +61,44 @@ export function BalanceMonthList({
   };
 
   const row = (r: BalanceRow, section: ConceptSection) => {
-    const href = view === "real" ? cellHref(r, year, i, sheet.monthsElapsed, personal) : null;
+    const editable = view === "real" && r.kind !== "subtotal";
+    const comment = comments[r.id]?.[i];
     const content = (
       <>
-        <span className={cn("min-w-0 flex-1", r.depth === 1 ? "pl-4 text-[13px]" : "", r.kind === "subtotal" && "font-extrabold")}>
-          <span className="inline-flex items-center gap-1.5">
+        <span className={cn("min-w-0 flex-1 text-left", r.depth === 1 && "pl-4 text-[13px]", r.kind === "subtotal" && "font-extrabold")}>
+          <span className="inline-flex flex-wrap items-center gap-x-1.5">
             <span className="break-words">{r.name}</span>
             {r.kind === "linked" && <Link2 className="size-3.5 shrink-0 text-brand" aria-label="automático" />}
             {view === "real" && r.manualOverride[i] && (
               <PenLine className="size-3.5 shrink-0 text-brand" aria-label="escrito a mano" />
             )}
+            {comment && <MessageSquare className="size-3.5 shrink-0 text-brand" aria-label="con comentario" />}
+            {r.archived && <span className="text-[11px] font-semibold">(archivado)</span>}
+            {hidden.has(r.id) && <span className="text-[11px] font-semibold">(oculto)</span>}
           </span>
+          {comment && <span className="mt-0.5 block text-xs text-muted-foreground">{comment}</span>}
         </span>
         {amount(r, section, r.kind === "subtotal")}
-        {href && <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
       </>
     );
-    const cls = cn("flex min-h-11 items-center gap-2 border-b py-2", r.archived && "text-muted-foreground");
-    return href ? (
-      <li key={r.id}>
-        <Link href={href} className={cn(cls, "hover:bg-accent")} title={cellNote(r, i)}>
-          {content}
-        </Link>
-      </li>
-    ) : (
-      <li key={r.id} className={cls} title={view === "real" ? cellNote(r, i) : undefined}>
-        {content}
+    return (
+      <li
+        key={r.id}
+        className={cn("flex items-center gap-1 border-b", (r.archived || hidden.has(r.id)) && "text-muted-foreground")}
+      >
+        {editable ? (
+          <button
+            type="button"
+            onClick={() => openCell(r, i)}
+            title={cellNote(r, i)}
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 hover:bg-accent"
+          >
+            {content}
+          </button>
+        ) : (
+          <span className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2">{content}</span>
+        )}
+        <ConceptMenu row={r} className="size-11" />
       </li>
     );
   };
@@ -102,7 +116,12 @@ export function BalanceMonthList({
             {block.rows.length === 0 && (
               <li className="border-b py-3 text-muted-foreground">Sin conceptos en este bloque.</li>
             )}
-            {block.rows.flatMap((r) => [row(r, block.section), ...r.children.map((c) => row(c, block.section))])}
+            {block.rows
+              .filter(visible)
+              .flatMap((r) => [row(r, block.section), ...r.children.filter(visible).map((c) => row(c, block.section))])}
+            <li className="border-b">
+              <AddConceptButton section={block.section} />
+            </li>
             <li className="-mx-4 flex min-h-11 items-center gap-2 border-b bg-background px-4 py-2 font-extrabold">
               <span className="flex-1">{TOTAL_LABEL[block.section]}</span>
               {amount(block.total, block.section, true)}

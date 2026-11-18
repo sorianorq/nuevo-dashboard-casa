@@ -48,3 +48,18 @@ export type Transaction = {
   flow: Flow;
   note: string | null;
 };
+
+export const PERIODICITIES = ["mensual", "trimestral", "anual", "puntual"] as const;
+export type Periodicity = (typeof PERIODICITIES)[number];
+export const PERIODICITY_LABEL: Record<Periodicity, string> = {
+  mensual: "Mensual",
+  trimestral: "Trimestral",
+  anual: "Anual",
+  puntual: "Puntual",
+};
+
+export const LINK_SOURCE_LABEL = {
+  movimientos: "Movimientos del banco",
+  pagos: "Pagos",
+  supermercado: "Supermercado",
+} as const;

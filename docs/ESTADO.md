@@ -65,10 +65,12 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    Falta:
    - Ricardo añade `FC_ADMIN_EMAIL` / `FC_ADMIN_PASSWORD` a `.env.test.local` → probar rol
      admin y comparar el Balance de Andrea con producción (criterio de la fase 2);
-   - entrega 2: importes manuales, comentarios por celda, + Concepto / + Añadir, ocultar,
-     reordenar y renombrar (en `user_preferences` / `andrea_concepts`), con un script 05 de
-     permisos de escritura sobre `andrea_balance`, `andrea_comments`, `andrea_periodicity`
-     y `user_preferences` (el 04 no los cubre);
+   - entrega 2 **programada, sin probar el guardado**: clic en una celda → ventana con el
+     automático (y «Ver movimientos»), importe escrito a mano y comentario; menú «⋯» por
+     concepto (editar nombre y periodicidad, subir, bajar, ocultar, archivar/recuperar);
+     «+ Concepto» y «+ Añadir» por bloque; `?todos=1` muestra ocultos y archivados.
+     **Bloqueada por `supabase/sql/05_permisos_balances.sql`** (lo ejecuta Ricardo). Después:
+     probar cada acción con la sesión real y deshacer lo que se pruebe;
    - también sin probar: guardar concepto, flujo, nueva cuenta o nuevo concepto en Movimientos.
 6. Fases 3–5: Supermercado, Pagos (Amex y personales), Presupuesto y el alta rápida del ➕.
 
@@ -128,6 +130,18 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   - hoja anual de ordenador redondeada al euro (13 columnas no caben con céntimos); el
     importe exacto va en el `title`. Móvil con 2 decimales;
   - conceptos archivados solo aparecen si tienen algún importe en el año.
+- **Balances, entrega 2:**
+  - quitar un importe a mano o un comentario borra su fila (`andrea_balance` /
+    `andrea_comments`); es lo único que se borra. Un concepto nunca se borra: se archiva;
+  - renombrar cambia también `concept` (y pone `concept_id`) en importes y comentarios;
+  - orden compartido en `andrea_concepts.sort_order` (se renumera de 10 en 10 al mover);
+    filas ocultas por usuario en `user_preferences` (`key = 'balance_hidden'`,
+    `value = {owner: [ids]}`); siguen sumando, como en producción;
+  - periodicidad en `andrea_concepts.periodicity`; si está vacía se muestra la de
+    `andrea_periodicity` (por nombre);
+  - «rellenar año» solo para conceptos manuales: escribe el importe en los 12 meses;
+  - las celdas se escriben buscando la fila existente (por `concept_id` o nombre) y
+    actualizándola; si no hay, se inserta. No se usa upsert para no depender de índices únicos.
 - **Balance de Andrea en producción** (`dashboard-rqs.vercel.app/js/andrea.js`): todo manual.
   Importes de `andrea_balance` por nombre de concepto y mes (en positivo), conceptos fijos en
   el código + `andrea_concepts`; resultado = ingresos − gastos − ahorro; las filas ocultas

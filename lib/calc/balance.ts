@@ -29,6 +29,7 @@ export type BalanceConcept = {
   linkSource: LinkSource | null;
   sortOrder: number;
   archived: boolean;
+  periodicity: string | null;
 };
 
 /** Doce valores (enero..diciembre); null = sin dato. */
@@ -44,11 +45,15 @@ export type BalanceInput = {
   budget: Map<string, MonthValues>;
   /** Meses del año ya empezados (1..12); los posteriores no tienen real ni desvío. */
   monthsElapsed: number;
+  /** Incluir los archivados aunque no tengan importes en el año (para recuperarlos). */
+  includeArchived?: boolean;
 };
 
 export type BalanceRow = {
   id: string;
   name: string;
+  section: ConceptSection;
+  periodicity: string | null;
   kind: ConceptKind;
   linkSource: LinkSource | null;
   parentId: string | null;
@@ -57,6 +62,10 @@ export type BalanceRow = {
   real: MonthValues;
   /** true en las celdas cuyo real es un importe escrito a mano sobre un enlazado. */
   manualOverride: boolean[];
+  /** Suma del origen (solo enlazados, meses empezados), aunque haya importe a mano. */
+  automatic: MonthValues;
+  /** Lo escrito a mano en cada celda. */
+  manual: MonthValues;
   budget: MonthValues;
   deviation: MonthValues;
   children: BalanceRow[];
@@ -116,6 +125,8 @@ function leafRow(c: BalanceConcept, input: BalanceInput): BalanceRow {
   return {
     id: c.id,
     name: c.name,
+    section: c.section,
+    periodicity: c.periodicity,
     kind: c.kind,
     linkSource: c.linkSource,
     parentId: c.parentId,
@@ -123,6 +134,8 @@ function leafRow(c: BalanceConcept, input: BalanceInput): BalanceRow {
     archived: c.archived,
     real,
     manualOverride,
+    automatic: real.map((_, i) => (c.kind === "linked" && i < input.monthsElapsed ? round2(linked?.[i] ?? 0) : null)),
+    manual,
     budget,
     deviation: deviationOf(real, budget, input.monthsElapsed),
     children: [],
@@ -138,6 +151,7 @@ const byOrder = (a: BalanceConcept, b: BalanceConcept) =>
 
 /** Construye la hoja anual de un Balance. */
 export function buildBalanceSheet(input: BalanceInput): BalanceSheet {
+  const keep = (r: BalanceRow) => !r.archived || input.includeArchived || hasData(r);
   const ids = new Set(input.concepts.map((c) => c.id));
   const subtotalIds = new Set(input.concepts.filter((c) => c.kind === "subtotal").map((c) => c.id));
   // Un hijo cuyo padre no existe (o no es subtotal) se muestra en primer nivel.
@@ -151,12 +165,14 @@ export function buildBalanceSheet(input: BalanceInput): BalanceSheet {
         const children = concepts
           .filter((x) => parentOf(x) === c.id && x.kind !== "subtotal")
           .map((x) => ({ ...leafRow(x, input), depth: 1 as const }))
-          .filter((r) => !r.archived || hasData(r));
+          .filter(keep);
         const real = sumValues(children.map((r) => r.real));
         const budget = sumValues(children.map((r) => r.budget));
         const row: BalanceRow = {
           id: c.id,
           name: c.name,
+          section: c.section,
+          periodicity: c.periodicity,
           kind: "subtotal",
           linkSource: null,
           parentId: null,
@@ -164,14 +180,16 @@ export function buildBalanceSheet(input: BalanceInput): BalanceSheet {
           archived: c.archived,
           real,
           manualOverride: Array.from({ length: MONTHS }, () => false),
+          automatic: empty(),
+          manual: empty(),
           budget,
           deviation: sumValues(children.map((r) => r.deviation)),
           children,
         };
-        if (!row.archived || hasData(row)) rows.push(row);
+        if (keep(row)) rows.push(row);
       } else {
         const row = leafRow(c, input);
-        if (!row.archived || hasData(row)) rows.push(row);
+        if (keep(row)) rows.push(row);
       }
     }
     const total: BalanceTotals = {

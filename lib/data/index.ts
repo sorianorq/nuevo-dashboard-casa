@@ -42,3 +42,13 @@ export {
 } from "./transactions";
 export { getTemplate, saveTemplate, existingImportKeys, insertTransactions } from "./imports";
 export { getBalance, type BalanceData } from "./balance";
+export {
+  setManualAmount,
+  setCellComment,
+  createBalanceConcept,
+  updateBalanceConcept,
+  moveBalanceConcept,
+  setConceptArchived,
+  setConceptHidden,
+  type NewConceptInput,
+} from "./balance-edit";

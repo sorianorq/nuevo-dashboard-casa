@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Link2, PenLine, TriangleAlert } from "lucide-react";
+import Link from "next/link";
+import { AddConceptButton, BalanceEditor } from "@/components/balances/balance-editor";
 import { BalanceMonthList } from "@/components/balances/balance-month-list";
 import { BalanceTable } from "@/components/balances/balance-table";
 import { VIEW_LABEL, parseView, type BalanceView } from "@/components/balances/shared";
@@ -43,16 +45,33 @@ async function Content({ searchParams }: { searchParams: SP }) {
   const view = parseView(str(sp.vista));
   const monthsElapsed = ym.year < currentYm.year ? 12 : currentYm.month;
 
-  const data = await getBalance(ctx, ym.year, monthsElapsed);
+  const showAll = str(sp.todos) === "1";
+  const data = await getBalance(ctx, ym.year, monthsElapsed, { includeArchived: showAll });
   const personal = ctx.tab === "personal";
 
   const base: Record<string, string> = {};
   if (personal) base.balance = "personal";
-  const withView: Record<string, string> = { ...base, ...(view !== "real" ? { vista: view } : {}) };
+  const withView: Record<string, string> = {
+    ...base,
+    ...(view !== "real" ? { vista: view } : {}),
+    ...(showAll ? { todos: "1" } : {}),
+  };
+  const toggleAllHref = (() => {
+    const qs = new URLSearchParams({ ...withView, ...(requested ? { mes: str(sp.mes) as string } : {}) });
+    if (showAll) qs.delete("todos");
+    else qs.set("todos", "1");
+    const s = qs.toString();
+    return s ? `${PATH}?${s}` : PATH;
+  })();
+  const groups = data.blocks.flatMap((b) =>
+    b.rows.filter((r) => r.kind === "subtotal" && !r.archived).map((r) => ({ id: r.id, name: r.name, section: b.section })),
+  );
+  const hiddenCount = data.hidden.length;
   const viewHref = (v: BalanceView) => {
     const qs = new URLSearchParams(base);
     if (requested) qs.set("mes", str(sp.mes) as string);
     if (v !== "real") qs.set("vista", v);
+    if (showAll) qs.set("todos", "1");
     const s = qs.toString();
     return s ? `${PATH}?${s}` : PATH;
   };
@@ -60,7 +79,14 @@ async function Content({ searchParams }: { searchParams: SP }) {
   const empty = data.blocks.every((b) => b.rows.length === 0);
 
   return (
-    <>
+    <BalanceEditor
+      tab={ctx.tab}
+      year={ym.year}
+      monthsElapsed={monthsElapsed}
+      groups={groups}
+      hidden={data.hidden}
+      comments={data.comments}
+    >
       <BalanceSwitcher
         role={ctx.role}
         person={ctx.person}
@@ -109,12 +135,14 @@ async function Content({ searchParams }: { searchParams: SP }) {
       )}
 
       {empty ? (
-        <p className="rounded-card border bg-card px-6 py-10 text-center text-muted-foreground">
-          Este Balance aún no tiene conceptos.
-        </p>
+        <div className="space-y-4 rounded-card border bg-card px-6 py-10 text-center text-muted-foreground">
+          <p>Este Balance aún no tiene conceptos.</p>
+          <AddConceptButton variant="primary" />
+        </div>
       ) : (
         <>
-          <p className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Link2 className="size-3.5 text-brand" aria-hidden /> dato automático
             </span>
@@ -123,12 +151,32 @@ async function Content({ searchParams }: { searchParams: SP }) {
             </span>
             {view === "real" && <span className="lg:hidden">importe gris = presupuesto</span>}
             <span className="hidden lg:inline">Cifras redondeadas al euro: pasa el ratón para ver los céntimos.</span>
-            {view === "real" && (
-              <span className="hidden lg:inline">Clic en un importe automático para ver sus movimientos.</span>
-            )}
+            {view === "real" && <span className="hidden lg:inline">Clic en un importe para editarlo o comentarlo.</span>}
           </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {(hiddenCount > 0 || showAll) && (
+              <Link
+                href={toggleAllHref}
+                scroll={false}
+                className="flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-brand hover:bg-accent"
+              >
+                {showAll ? "Ocultar filas ocultas y archivadas" : `${hiddenCount} ${hiddenCount === 1 ? "fila oculta" : "filas ocultas"} · Mostrar`}
+              </Link>
+            )}
+            {!showAll && hiddenCount === 0 && (
+              <Link
+                href={toggleAllHref}
+                scroll={false}
+                className="flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-muted-foreground hover:bg-accent"
+              >
+                Ver archivados
+              </Link>
+            )}
+            <AddConceptButton variant="primary" />
+          </div>
+          </div>
           <div className="lg:hidden">
-            <BalanceMonthList sheet={data} year={ym.year} month={ym.month} view={view} personal={personal} />
+            <BalanceMonthList sheet={data} month={ym.month} view={view} showAll={showAll} />
           </div>
           <div className="hidden lg:block">
             <BalanceTable
@@ -136,11 +184,11 @@ async function Content({ searchParams }: { searchParams: SP }) {
               year={ym.year}
               view={view}
               currentMonth={ym.year === currentYm.year ? currentYm.month : null}
-              personal={personal}
+              showAll={showAll}
             />
           </div>
         </>
       )}
-    </>
+    </BalanceEditor>
   );
 }

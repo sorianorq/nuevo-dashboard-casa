@@ -31,21 +31,6 @@ export function deviationTone(value: number, section: ConceptSection | "resultad
   return good ? "positive" : "warning";
 }
 
-/** Enlace a los movimientos de una celda (solo conceptos con origen en movimientos). */
-export function cellHref(
-  row: Pick<BalanceRow, "id" | "kind" | "linkSource" | "manualOverride">,
-  year: number,
-  monthIndex: number,
-  monthsElapsed: number,
-  personal: boolean,
-): string | null {
-  if (row.kind !== "linked" || row.linkSource !== "movimientos") return null;
-  if (monthIndex >= monthsElapsed || row.manualOverride[monthIndex]) return null;
-  const qs = new URLSearchParams({ mes: `${year}-${String(monthIndex + 1).padStart(2, "0")}`, concepto: row.id });
-  if (personal) qs.set("balance", "personal");
-  return `/contabilidad/movimientos?${qs}`;
-}
-
 /** Texto de ayuda de una celda (title). */
 export function cellNote(row: Pick<BalanceRow, "kind" | "linkSource" | "manualOverride">, monthIndex: number): string {
   if (row.kind === "subtotal") return "Suma de sus conceptos";
@@ -53,5 +38,5 @@ export function cellNote(row: Pick<BalanceRow, "kind" | "linkSource" | "manualOv
   if (row.manualOverride[monthIndex]) return "Escrito a mano: manda sobre el automático";
   if (row.linkSource === "supermercado") return "Desde Supermercado";
   if (row.linkSource === "pagos") return "Desde Pagos";
-  return "Ver sus movimientos";
+  return "Desde movimientos del banco";
 }
