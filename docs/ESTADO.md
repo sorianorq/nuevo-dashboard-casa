@@ -281,6 +281,12 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Menú lateral plegable (ordenador, 18/11/2026):** icono en la cabecera del menú para
+  ocultarlo y botón arriba a la izquierda para mostrarlo. Se recuerda en el navegador
+  (`localStorage` `fc-sidebar`) y se aplica antes de pintar con un script en `app/layout.tsx`
+  que pone `data-sidebar="closed"` en `<html>`; las reglas están en `globals.css` **fuera de
+  `@layer`** (si no, `lg:flex` / `lg:pl-[260px]` mandan). Ojo: tras cambiar `globals.css`,
+  una compilación local puede reutilizar CSS antiguo; `rm -rf .next` lo arregla.
 - **Hoja anual de Balances a lo ancho (18/11/2026):** la página de Balances usa hasta 1840 px
   (`data-wide` + `has-[[data-wide]]` en `app-shell.tsx`; el resto sigue en 1240 px). Tabla más
   compacta: en 1440 px caben los 12 meses y el Total (también Andrea con Notas); en modo manual

@@ -190,3 +190,23 @@
     background: var(--track);
   }
 }
+
+/*
+ * Menú lateral oculto (ordenador): ver SidebarToggle y el script de
+ * app/layout.tsx. Fuera de @layer para que mande sobre las utilidades
+ * (lg:flex, lg:pl-[260px]).
+ */
+.sidebar-open-button {
+  display: none;
+}
+@media (min-width: 64rem) {
+  html[data-sidebar="closed"] .app-sidebar {
+    display: none;
+  }
+  html[data-sidebar="closed"] .sidebar-offset {
+    padding-left: 3.5rem;
+  }
+  html[data-sidebar="closed"] .sidebar-open-button {
+    display: grid;
+  }
+}

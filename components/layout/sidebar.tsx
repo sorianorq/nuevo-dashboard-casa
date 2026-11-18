@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown, Plus, Settings } from "lucide-react";
+import { ChevronDown, PanelLeftClose, PanelLeftOpen, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { NAV, isActive } from "@/lib/nav";
@@ -19,11 +19,14 @@ export function Sidebar({ user }: { user: React.ReactNode }) {
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r bg-sidebar lg:flex">
+    <aside className="app-sidebar fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r bg-sidebar lg:flex">
       <div className="px-5 pt-6 pb-4">
-        <Link href="/resumen" aria-label="Finanzas Casa · Resumen" className="rounded-lg">
-          <Logo />
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/resumen" aria-label="Finanzas Casa · Resumen" className="rounded-lg">
+            <Logo />
+          </Link>
+          <SidebarToggle mode="close" />
+        </div>
         <Button className="mt-5 w-full" onClick={quickAdd.open}>
           <Plus aria-hidden />
           Añadir gasto
@@ -128,5 +131,46 @@ export function Sidebar({ user }: { user: React.ReactNode }) {
         </div>
       </div>
     </aside>
+  );
+}
+
+/**
+ * Ocultar / mostrar el menú lateral (ordenador). Se guarda en este navegador
+ * y se aplica con un atributo en <html> (sin parpadeo al cargar).
+ */
+export function SidebarToggle({ mode }: { mode: "open" | "close" }) {
+  const set = (closed: boolean) => {
+    if (closed) document.documentElement.dataset.sidebar = "closed";
+    else delete document.documentElement.dataset.sidebar;
+    try {
+      if (closed) localStorage.setItem("fc-sidebar", "closed");
+      else localStorage.removeItem("fc-sidebar");
+    } catch {
+      // Sin almacenamiento (modo privado): vale para esta visita.
+    }
+  };
+  if (mode === "close") {
+    return (
+      <button
+        type="button"
+        onClick={() => set(true)}
+        aria-label="Ocultar el menú lateral"
+        title="Ocultar menú"
+        className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
+      >
+        <PanelLeftClose className="size-5" aria-hidden />
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => set(false)}
+      aria-label="Mostrar el menú lateral"
+      title="Mostrar menú"
+      className="sidebar-open-button fixed top-4 left-3 z-40 size-10 place-items-center rounded-xl border bg-surface text-muted-foreground shadow-sm hover:bg-accent hover:text-foreground"
+    >
+      <PanelLeftOpen className="size-5" aria-hidden />
+    </button>
   );
 }

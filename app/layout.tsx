@@ -22,9 +22,18 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * Antes de pintar: si el usuario ocultó el menú lateral, se marca en <html>
+ * (así no aparece un instante y luego se esconde). Ver SidebarToggle.
+ */
+const SIDEBAR_SCRIPT = `try{if(localStorage.getItem("fc-sidebar")==="closed")document.documentElement.dataset.sidebar="closed"}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${manrope.variable} h-full`}>
+    <html lang="es" className={`${manrope.variable} h-full`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_SCRIPT }} />
+      </head>
       <body className="min-h-full">
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster position="top-center" />
