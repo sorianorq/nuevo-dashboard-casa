@@ -72,10 +72,17 @@ y el rol admin. La importación sí está probada contra la base de datos real (
      sesión de `ricardo` y comprobando la base de datos en cada paso: importe a mano y
      comentario (guardar y quitar), ocultar/mostrar, subir/bajar, periodicidad, renombrar
      (ida y vuelta), alta de concepto manual con «rellenar año» y archivar. Todo se dejó como
-     estaba, salvo: la fila `balance_hidden` de Ricardo en `user_preferences` (lista vacía) y
-     el concepto archivado «Prueba Claude (borrar)» en el catálogo de Ricardo (sin importes);
-   - pendiente de fase 1: probar guardar concepto, flujo, nueva cuenta o nuevo concepto en
-     Movimientos.
+     estaba, salvo la fila `balance_hidden` de Ricardo en `user_preferences` (lista vacía).
+     El concepto archivado «Prueba Claude (borrar)» se borró el 18/11/2026;
+   - fase 1, Movimientos: guardado **probado** el 18/11/2026 con la sesión de Ricardo
+     (movimiento de septiembre de 2026 sin concepto): poner y quitar concepto en la tabla
+     (1440 px), traspaso propio y vuelta a normal en la hoja de edición (390 px), «Nuevo
+     concepto» desde el desplegable (se crea enlazado a movimientos) y quitarlo, «Nueva
+     cuenta» en Cargar extracto (queda elegida). El movimiento quedó como estaba; la cuenta y
+     el concepto de prueba se borraron (las reglas antiguas dejan borrar lo propio). Arreglado
+     al probar: en el buscador de conceptos, «Sin concepto» no aparecía al escribir «sin», y
+     «Nuevo concepto» desaparecía al escribir un nombre que no existe (ahora siempre se ve y
+     propone ese nombre).
 6. **Fase 3 · Supermercado.** Entrega 1 (solo lectura) hecha el 18/11/2026: datos clave del
    mes (gasto, nº de compras, ticket medio, % vs mes anterior con la regla del apartado 6),
    gasto por categoría (`catId`) frente a la media de 12 meses, por tienda, evolución de 12

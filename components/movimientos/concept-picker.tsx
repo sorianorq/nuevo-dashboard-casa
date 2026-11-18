@@ -98,7 +98,7 @@ export function ConceptPicker({
             <CommandList className="max-h-72">
               <CommandEmpty>No hay conceptos con ese nombre.</CommandEmpty>
               <CommandGroup>
-                <CommandItem value="__none" onSelect={() => pick(null)} className="min-h-11">
+                <CommandItem value="Sin concepto __none" onSelect={() => pick(null)} className="min-h-11">
                   <span className="text-muted-foreground">Sin concepto</span>
                   {value === null && <Check className="ml-auto size-4" aria-hidden />}
                 </CommandItem>
@@ -125,11 +125,12 @@ export function ConceptPicker({
                   </CommandGroup>
                 );
               })}
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem value="__new" onSelect={() => setCreating(true)} className="min-h-11 font-semibold text-brand">
+              <CommandSeparator alwaysRender />
+              {/* Siempre visible: al buscar un nombre que no existe es cuando más hace falta. */}
+              <CommandGroup forceMount>
+                <CommandItem forceMount value="__new" onSelect={() => setCreating(true)} className="min-h-11 font-semibold text-brand">
                   <Plus className="size-4" aria-hidden />
-                  Nuevo concepto
+                  {query.trim() ? `Nuevo concepto «${query.trim()}»` : "Nuevo concepto"}
                 </CommandItem>
               </CommandGroup>
             </CommandList>
