@@ -41,3 +41,4 @@ export {
   type TxType,
 } from "./transactions";
 export { getTemplate, saveTemplate, existingImportKeys, insertTransactions } from "./imports";
+export { getBalance, type BalanceData } from "./balance";

@@ -20,6 +20,7 @@ coincide con la base de datos completa. Falta probar el guardado real.
 | 1 | `35ce583` | Tokens del estilo A, Manrope, formato es-ES (`lib/format.ts`), login, `proxy.ts`, rol desde `user_roles`, pestañas de Balance y selector de admin, menú lateral y barra inferior con ➕ («Próximamente»), rutas de todas las secciones. |
 | 2 | `d2fb7d1` | Resumen: reglas del apartado 6 en `lib/calc/summary.ts` (funciones puras), consultas en `lib/data/summary.ts`, gráfico de 12 meses con vista de tabla, gasto por concepto, Supermercado y Amex. |
 | 3 | `609153c` | Movimientos (filtros, lista o tabla, concepto con buscador, «+ Nuevo concepto», aplicar a parecidos, tipo de flujo), revisión uno a uno de movimientos sin concepto, Cargar extracto en 3 pasos. |
+| 2a | (este) | Balances, solo lectura: hoja anual Real / Presupuesto / Desvío (ordenador), mes a mes (móvil), subtotales plegables, clic en un importe automático → sus movimientos. Reglas en `lib/calc/balance.ts`, datos en `lib/data/balance.ts`. Comprobado con la sesión de `ricardo` (Casa y Ricardo 2026): totales por bloque iguales a una suma directa en la base de datos; 390 y 1440 px sin errores ni desbordamiento. |
 | — | `5819a74` | `await connection()` en `lib/supabase/server.ts`; script 04 de permisos (sin ejecutar). |
 
 **Verificado con la sesión real del usuario `ricardo`** (17–18/11/2026): login, lectura del
@@ -60,8 +61,16 @@ y el rol admin. La importación sí está probada contra la base de datos real (
      todo `owner = casa`, `flow = normal`, hash sha256 único por fila, tipo coherente con el
      signo, las filas idénticas guardadas con hashes distintos. Volver a cargar el archivo da
      0 nuevos y todo duplicado.
-5. Fase 2 en adelante: Balances, Presupuesto, Supermercado, American Express, Pagos y el
-   alta rápida del ➕ (hoy todas son «Próximamente»).
+5. **Fase 2 · Balances.** Entrega 1 (solo lectura) hecha el 18/11/2026; ver apartado 2.
+   Falta:
+   - Ricardo añade `FC_ADMIN_EMAIL` / `FC_ADMIN_PASSWORD` a `.env.test.local` → probar rol
+     admin y comparar el Balance de Andrea con producción (criterio de la fase 2);
+   - entrega 2: importes manuales, comentarios por celda, + Concepto / + Añadir, ocultar,
+     reordenar y renombrar (en `user_preferences` / `andrea_concepts`), con un script 05 de
+     permisos de escritura sobre `andrea_balance`, `andrea_comments`, `andrea_periodicity`
+     y `user_preferences` (el 04 no los cubre);
+   - también sin probar: guardar concepto, flujo, nueva cuenta o nuevo concepto en Movimientos.
+6. Fases 3–5: Supermercado, Pagos (Amex y personales), Presupuesto y el alta rápida del ➕.
 
 ## 4. Hallazgos en los datos y en la app en producción
 
@@ -97,6 +106,35 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   - cualquier importe negativo es gasto, incluidos los traspasos a ahorro (regla literal).
 - **Paleta del gráfico:** el verde y el dorado de los tokens dan ΔE 14,2 con visión normal
   (mínimo recomendado: 15). Se compensa con orden fijo, leyenda, tooltip y tabla.
+- **Balances (fase 2), decidido por Ricardo el 18/11/2026:**
+  - el Real de un concepto enlazado sale **solo de su origen** (`link_source`): movimientos
+    (`flow = normal`), Pagos (`amex_expenses`) o Supermercado (`supermarket_purchases`).
+    Así «Compra» = compras de Supermercado y no cuenta también los cargos del banco. En el
+    Resumen, el gasto por concepto sigue saliendo de los movimientos;
+  - se entrega en dos partes: (1) solo lectura (hoja anual Real / Presupuesto / Desvío, móvil
+    mes a mes, clic en una celda → sus movimientos); (2) edición (importes manuales,
+    comentarios, + Concepto) con un script 05 de permisos de escritura;
+  - el rol admin y el Balance de Andrea se prueban con `FC_ADMIN_EMAIL` / `FC_ADMIN_PASSWORD`
+    en `.env.test.local` (los añade Ricardo).
+- **Balances, detalles de la entrega 1:**
+  - lo escrito a mano (`andrea_balance`) cuenta en cualquier mes, también futuros, como en
+    producción; lo automático, solo hasta el mes en curso;
+  - `andrea_balance` se casa con el concepto por `concept_id` o, si falta, por nombre dentro
+    del Balance. Si queda algún importe sin concepto, la pantalla lo avisa (no suma);
+  - Pagos: no cuentan los gastos con `purchase_id` (ya cuentan en Supermercado). Las compras
+    de Supermercado sin concepto van a «Compra» de Casa;
+  - desvío = real − presupuesto solo donde hay presupuesto y el mes ha empezado; en Gastos,
+    negativo es bueno. Hoy `monthly_budgets` está vacía: Presupuesto y Desvío salen «—»;
+  - hoja anual de ordenador redondeada al euro (13 columnas no caben con céntimos); el
+    importe exacto va en el `title`. Móvil con 2 decimales;
+  - conceptos archivados solo aparecen si tienen algún importe en el año.
+- **Balance de Andrea en producción** (`dashboard-rqs.vercel.app/js/andrea.js`): todo manual.
+  Importes de `andrea_balance` por nombre de concepto y mes (en positivo), conceptos fijos en
+  el código + `andrea_concepts`; resultado = ingresos − gastos − ahorro; las filas ocultas
+  suman; orden, ocultos, renombres y borrados de conceptos fijos solo en `localStorage`.
+- **Datos (18/11/2026):** ningún gasto de `amex_expenses` ni compra de `supermarket_purchases`
+  tiene `concept_id`; `andrea_balance`, `andrea_comments` y `andrea_periodicity` no tienen
+  filas visibles para `ricardo` (serán de Andrea). El catálogo de Ricardo tiene sus conceptos.
 - **Importación:**
   - el archivo se lee en el navegador (`lib/import/parse-file.ts`, SheetJS 0.20.3 desde el
     CDN oficial; la de npm tiene CVE);

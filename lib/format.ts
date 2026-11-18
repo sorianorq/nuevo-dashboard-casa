@@ -149,3 +149,21 @@ export function formatAmountCompact(value: number): string {
   const text = `${compact.format(Math.abs(value))} €`;
   return value < 0 && Math.round(value) !== 0 ? `${MINUS}${text}` : text;
 }
+
+const integer = new Intl.NumberFormat("es-ES", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+  useGrouping: "always",
+});
+
+/** Celdas de la hoja anual: «1.235» / «−80» (redondeado al euro, sin «€»). */
+export function formatCellRounded(value: number): string {
+  const text = integer.format(Math.abs(value));
+  return value < 0 && Math.round(value) !== 0 ? `${MINUS}${text}` : text;
+}
+
+/** Igual con signo explícito (desvíos): «+120» / «−35». Cero sin signo. */
+export function formatCellSigned(value: number): string {
+  if (Math.round(value) === 0) return integer.format(0);
+  return `${value > 0 ? "+" : MINUS}${integer.format(Math.abs(value))}`;
+}
