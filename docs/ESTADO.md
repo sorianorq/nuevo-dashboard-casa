@@ -256,6 +256,11 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   Vorwerk, Netflix, ChatGpt); sueltos Farmacia/Suplementos, Compra, Ocio, Amazon, Cosas de
   Casa, Seguro Hogar, Otros gastos. Origen: banco, salvo Compra (Supermercado) y Otros gastos
   (gastos a mano). Los 1.022 movimientos de Casa siguen sin concepto (se asignan en Revisar).
+  Los de Gastos tienen `pagos_visible` (se ofrecen en la Amex y en el ➕ al elegir Casa).
+- **Selector de concepto (comprobado el 18/11/2026):** en Movimientos, la columna y el filtro
+  ofrecen solo los conceptos del Balance de la pestaña; en el formulario de gastos a mano
+  (Amex y ➕), los del Balance elegido en «Cuenta en el Balance de». Andrea no tiene conceptos
+  de gastos para ese formulario (sus fijos son «a mano» y los variables están archivados).
 - **Conceptos de Ricardo, según su lista (18/11/2026):** subtotales Total ingresos, Casa,
   Gastos Financieros, Coche, Suscripciones, Salud/Belleza, Transporte y Ocio; los nombres
   repetidos llevan su grupo entre paréntesis («Otros (Coche)», «Transferencias (gasto)»…).
