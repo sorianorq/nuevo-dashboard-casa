@@ -281,6 +281,17 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Bot de Telegram para apuntar gastos (20/11/2026, en montaje):** mensaje libre → Claude
+  (`claude-opus-5-5`, esfuerzo bajo, salida estructurada, `fallbacks: "default"`;
+  `lib/telegram/parse.ts`) saca importe, descripción, fecha, Amex y medio de pago → botones
+  **Casa · Ricardo · Andrea** → si no es Amex y no se dijo el medio, botones con los de quien
+  escribe → se guarda en `amex_expenses` con las reglas del formulario (concepto sugerido del
+  Balance o «Otros gastos»; pendiente si Amex y no Casa; comentario «Apuntado desde
+  Telegram») → botón «Deshacer». Webhook `app/api/telegram` (público en el proxy, protegido
+  por `TELEGRAM_WEBHOOK_SECRET`); solo atiende a `TELEGRAM_USERS` («idTelegram:persona,…»);
+  escribe con `SUPABASE_SERVICE_ROLE_KEY` (`lib/supabase/admin.ts`, solo para el bot).
+  Estado de los botones en `telegram_pending` (**script 12**, RLS sin políticas). Falta:
+  claves de Ricardo, script 12, registrar el webhook y los ids de Telegram.
 - **Resumen sale de Balances, decidido por Ricardo el 18/11/2026** (antes: todos los
   movimientos del banco del Balance, con o sin concepto, y Andrea salía a 0): tarjetas, YTD,
   gráfico de 12 meses y gasto por concepto = hoja de Balances «Real» del Balance elegido
