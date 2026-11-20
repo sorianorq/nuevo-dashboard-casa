@@ -281,7 +281,7 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
-- **Bot de Telegram para apuntar gastos (20/11/2026, en montaje):** mensaje libre → Claude
+- **Bot de Telegram para apuntar gastos (20/11/2026):** mensaje libre → Claude
   (`claude-opus-5-5`, esfuerzo bajo, salida estructurada, `fallbacks: "default"`;
   `lib/telegram/parse.ts`) saca importe, descripción, fecha, Amex y medio de pago → botones
   **Casa · Ricardo · Andrea** → si no es Amex y no se dijo el medio, botones con los de quien
@@ -290,8 +290,15 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   Telegram») → botón «Deshacer». Webhook `app/api/telegram` (público en el proxy, protegido
   por `TELEGRAM_WEBHOOK_SECRET`); solo atiende a `TELEGRAM_USERS` («idTelegram:persona,…»);
   escribe con `SUPABASE_SERVICE_ROLE_KEY` (`lib/supabase/admin.ts`, solo para el bot).
-  Estado de los botones en `telegram_pending` (**script 12**, RLS sin políticas). Falta:
-  claves de Ricardo, script 12, registrar el webhook y los ids de Telegram.
+  Estado de los botones en `telegram_pending` (**script 12**, RLS sin políticas).
+  **Funcionando desde el 20/11/2026:** bot **@rqs_casa_bot**; script 12 ejecutado; claves en
+  Vercel (producción y preview, sensibles) y en `.env.local`; webhook registrado con
+  `secret_token` y `allowed_updates` message + callback_query; comando /ayuda. Autorizado:
+  Ricardo (`TELEGRAM_USERS=1169906598:ricardo`); Andrea, pendiente de su id (escribe /start y
+  el bot se lo dice). Al cambiar `TELEGRAM_USERS` hay que volver a desplegar. Probado: Claude
+  entiende 6 mensajes de ejemplo (coma decimal, miles, «ayer», «el lunes», medio de pago,
+  «hola» → pregunta); primer gasto real de Ricardo guardado bien (Bankinter, Otros gastos).
+  El concepto se sugiere solo con el historial de gastos a mano (`amex_expenses`).
 - **Resumen sale de Balances, decidido por Ricardo el 18/11/2026** (antes: todos los
   movimientos del banco del Balance, con o sin concepto, y Andrea salía a 0): tarjetas, YTD,
   gráfico de 12 meses y gasto por concepto = hoja de Balances «Real» del Balance elegido
