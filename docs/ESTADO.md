@@ -298,7 +298,14 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   el bot se lo dice). Al cambiar `TELEGRAM_USERS` hay que volver a desplegar. Probado: Claude
   entiende 6 mensajes de ejemplo (coma decimal, miles, «ayer», «el lunes», medio de pago,
   «hola» → pregunta); primer gasto real de Ricardo guardado bien (Bankinter, Otros gastos).
-  El concepto se sugiere solo con el historial de gastos a mano (`amex_expenses`).
+  **Selector de concepto (20/11/2026, decisión de Ricardo):** tras Balance y medio de pago, el
+  bot muestra los conceptos de gastos de ese Balance tal como están en la app (los que ofrece
+  el formulario de gastos a mano: enlazados a Pagos o con `pagos_visible`, sin archivar), en
+  su orden, con los grupos (subtotales) que se abren y «‹ Volver», y arriba el sugerido (⭐,
+  por historial de `amex_expenses`). Con un solo concepto (Andrea: «Otros gastos») no
+  pregunta. Desde este cambio, «+ Concepto» marca `pagos_visible` en todo concepto de gastos
+  automático (antes solo si el origen era Pagos); se marcaron Casa › Comisiones Financieras y
+  Plan Ahorro Sabadell, que no salían.
 - **Resumen sale de Balances, decidido por Ricardo el 18/11/2026** (antes: todos los
   movimientos del banco del Balance, con o sin concepto, y Andrea salía a 0): tarjetas, YTD,
   gráfico de 12 meses y gasto por concepto = hoja de Balances «Real» del Balance elegido

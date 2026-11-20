@@ -209,7 +209,8 @@ export async function createBalanceConcept(ctx: DataContext, input: NewConceptIn
       link_source: input.kind === "linked" ? input.linkSource : null,
       parent_id: input.parentId,
       periodicity: input.periodicity,
-      pagos_visible: input.kind === "linked" && input.linkSource === "pagos",
+      // Los de gastos automáticos se ofrecen también al apuntar gastos a mano (formulario y bot).
+      pagos_visible: input.kind === "linked" && (input.linkSource === "pagos" || input.section === "gastos"),
       sort_order: sortOrder,
       archived: false,
     })

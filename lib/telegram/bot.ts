@@ -15,9 +15,12 @@ import { parseExpense, type ParsedExpense } from "./parse";
  *     medio de pago (parse.ts).
  *  2. Botones: ¿a qué Balance? (Casa · Ricardo · Andrea).
  *  3. Si no es Amex y no se dijo el medio de pago: botones con los suyos.
- *  4. Se guarda en amex_expenses con las reglas del formulario de gastos a
- *     mano (concepto sugerido del Balance elegido u «Otros gastos»; pendiente
- *     de traspaso si es Amex y no va a Casa). Botón «Deshacer».
+ *  4. Concepto: botones con los conceptos de gastos de ese Balance tal como
+ *     están en la app (los que ofrece el formulario de gastos a mano), con el
+ *     sugerido arriba (⭐) y los grupos (subtotales) que se abren. Si solo hay
+ *     uno, se usa sin preguntar.
+ *  5. Se guarda en amex_expenses (pendiente de traspaso si es Amex y no va a
+ *     Casa). Botón «Deshacer».
  *
  * Solo atiende a los usuarios de TELEGRAM_USERS («idTelegram:persona,…»).
  * Escribe con la clave de servicio (sin sesión): las reglas van aquí.
@@ -26,11 +29,14 @@ import { parseExpense, type ParsedExpense } from "./parse";
 const APP_URL = process.env.APP_URL ?? "https://nuevo-dashboard-casa.vercel.app";
 const OWNERS_ORDER: Owner[] = ["casa", "ricardo", "andrea"];
 
+type How = { amex: boolean; methodId: string | null };
+
 type Pending = {
   id: string;
   chat_id: number;
   person: Person;
-  payload: ParsedExpense & { amount: number };
+  /** Lo entendido del mensaje y, tras los botones, cómo se pagó. */
+  payload: ParsedExpense & { amount: number; how?: How };
   owner: Owner | null;
   expense_id: string | null;
 };
@@ -174,13 +180,13 @@ async function handleCallback(cq: TgCallback) {
     if (!isOwner(arg)) return answerCallback(cq.id);
     await db.from("telegram_pending").update({ owner: arg }).eq("id", pending.id);
     pending.owner = arg;
-    if (pending.payload.amex) return save(pending, { amex: true, methodId: null }, chatId, messageId, cq.id);
+    if (pending.payload.amex) return chooseHow(pending, { amex: true, methodId: null }, chatId, messageId, cq.id);
 
     // Sin Amex: medio de pago de quien escribe.
     const methods = await paymentMethods(person);
     const said = pending.payload.payment_method?.toLowerCase().trim();
     const match = said ? methods.find((m) => m.name.toLowerCase().includes(said) || said.includes(m.name.toLowerCase())) : undefined;
-    if (match) return save(pending, { amex: false, methodId: match.id }, chatId, messageId, cq.id);
+    if (match) return chooseHow(pending, { amex: false, methodId: match.id }, chatId, messageId, cq.id);
 
     const rows: Keyboard = [];
     const buttons = [
@@ -195,14 +201,136 @@ async function handleCallback(cq: TgCallback) {
   }
 
   if (kind === "m" && pending.owner) {
-    if (arg === "amex") return save(pending, { amex: true, methodId: null }, chatId, messageId, cq.id);
+    if (arg === "amex") return chooseHow(pending, { amex: true, methodId: null }, chatId, messageId, cq.id);
     const methods = await paymentMethods(person);
     const m = methods[Number(arg)];
     if (!m) return answerCallback(cq.id, "Ese medio de pago ya no existe.");
-    return save(pending, { amex: false, methodId: m.id }, chatId, messageId, cq.id);
+    return chooseHow(pending, { amex: false, methodId: m.id }, chatId, messageId, cq.id);
+  }
+
+  // Selector de concepto: abrir un grupo («g:id:n»), volver («g:id:-») o elegir («c:id:n»).
+  if (kind === "g" && pending.owner && pending.payload.how) {
+    return askConcept(pending, chatId, messageId, cq.id, arg === "-" ? null : Number(arg));
+  }
+  if (kind === "c" && pending.owner && pending.payload.how) {
+    const menu = await conceptMenu(pending.owner, pending.payload.description);
+    const c = menu.concepts[Number(arg)];
+    if (!c) return answerCallback(cq.id, "Ese concepto ya no existe.");
+    return save(pending, { id: c.id, name: c.name }, chatId, messageId, cq.id);
   }
 
   await answerCallback(cq.id);
+}
+
+/** Guarda cómo se pagó y pasa a elegir el concepto. */
+async function chooseHow(pending: Pending, how: How, chatId: number, messageId: number, callbackId: string) {
+  const db = createAdminClient();
+  pending.payload = { ...pending.payload, how };
+  await db.from("telegram_pending").update({ payload: pending.payload }).eq("id", pending.id);
+  return askConcept(pending, chatId, messageId, callbackId, null);
+}
+
+type MenuConcept = { id: string; name: string; parentId: string | null };
+type Menu = {
+  /** Conceptos elegibles, en el orden de la app (el índice va en el botón). */
+  concepts: MenuConcept[];
+  /** Primer nivel: grupo (subtotal con conceptos elegibles) o concepto suelto. */
+  top: ({ kind: "group"; index: number; name: string; children: number[] } | { kind: "concept"; index: number })[];
+  /** Índice del sugerido por gastos parecidos (o null). */
+  suggested: number | null;
+};
+
+/**
+ * Conceptos de gastos del Balance tal como están en la app: los que ofrece el
+ * formulario de gastos a mano (enlazados a Pagos o con pagos_visible, sin
+ * archivar), con sus grupos y el sugerido.
+ */
+export async function conceptMenu(owner: Owner, description: string): Promise<Menu> {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("andrea_concepts")
+    .select("id, concept, kind, link_source, pagos_visible, archived, section, sort_order, parent_id")
+    .eq("owner", owner)
+    .eq("section", "gastos");
+  if (error) throw new Error(`andrea_concepts: ${error.message}`);
+  const rows = (data ?? [])
+    .filter((c) => !c.archived)
+    .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || String(a.concept).localeCompare(String(b.concept), "es"));
+  const groupIds = new Set(rows.filter((c) => c.kind === "subtotal").map((c) => String(c.id)));
+  const concepts: MenuConcept[] = rows
+    .filter((c) => c.kind === "linked" && (c.link_source === "pagos" || c.pagos_visible === true))
+    .map((c) => ({ id: String(c.id), name: String(c.concept), parentId: c.parent_id && groupIds.has(String(c.parent_id)) ? String(c.parent_id) : null }));
+
+  const top: Menu["top"] = [];
+  // Recorre en el orden de la app: un grupo aparece donde está su subtotal.
+  for (const r of rows) {
+    const id = String(r.id);
+    if (r.kind === "subtotal") {
+      const children = concepts.map((c, i) => (c.parentId === id ? i : -1)).filter((i) => i >= 0);
+      if (children.length) {
+        top.push({ kind: "group", index: top.length, name: String(r.concept), children });
+      }
+    } else {
+      const i = concepts.findIndex((c) => c.id === id);
+      if (i >= 0 && concepts[i].parentId === null) top.push({ kind: "concept", index: i });
+    }
+  }
+
+  let suggested: number | null = null;
+  if (description && concepts.length) {
+    const ids = new Set(concepts.map((c) => c.id));
+    const { data: history } = await db
+      .from("amex_expenses")
+      .select("concept, concept_id, expense_date")
+      .not("concept_id", "is", null)
+      .is("purchase_id", null)
+      .order("expense_date", { ascending: false })
+      .limit(3000);
+    const hit = buildSuggester(
+      (history ?? [])
+        .filter((h) => ids.has(String(h.concept_id)) && typeof h.concept === "string" && h.concept.trim())
+        .map((h) => ({ description: String(h.concept), conceptId: String(h.concept_id), date: String(h.expense_date) })),
+    )(description);
+    if (hit) suggested = concepts.findIndex((c) => c.id === hit.conceptId);
+    if (suggested !== null && suggested < 0) suggested = null;
+  }
+  return { concepts, top, suggested };
+}
+
+/** Pregunta el concepto (primer nivel, o los de un grupo). */
+async function askConcept(pending: Pending, chatId: number, messageId: number, callbackId: string, group: number | null) {
+  const owner = pending.owner as Owner;
+  const menu = await conceptMenu(owner, pending.payload.description);
+  // Ninguno elegible: «Otros gastos» (se crea o recupera). Uno solo: ese.
+  if (menu.concepts.length === 0) return save(pending, await conceptFor(owner, ""), chatId, messageId, callbackId);
+  if (menu.concepts.length === 1) return save(pending, menu.concepts[0], chatId, messageId, callbackId);
+
+  const pid = pending.id;
+  const conceptButton = (i: number, star = false) => ({ text: `${star ? "⭐ " : ""}${menu.concepts[i].name}`, callback_data: `c:${pid}:${i}` });
+  const buttons: { text: string; callback_data: string }[] = [];
+  const rows: Keyboard = [];
+  let title = "¿Qué concepto?";
+
+  const g = group !== null ? menu.top[group] : undefined;
+  if (g && g.kind === "group") {
+    title = `${g.name}: ¿qué concepto?`;
+    for (const i of g.children) buttons.push(conceptButton(i));
+  } else {
+    if (menu.suggested !== null) rows.push([conceptButton(menu.suggested, true)]);
+    for (const t of menu.top) {
+      buttons.push(t.kind === "group" ? { text: `${t.name} ›`, callback_data: `g:${pid}:${t.index}` } : conceptButton(t.index));
+    }
+  }
+  for (let i = 0; i < buttons.length; i += 2) rows.push(buttons.slice(i, i + 2));
+  rows.push(
+    g
+      ? [{ text: "‹ Volver", callback_data: `g:${pid}:-` }, { text: "Cancelar", callback_data: `x:${pid}` }]
+      : [{ text: "Cancelar", callback_data: `x:${pid}` }],
+  );
+  const how = pending.payload.how;
+  const paid = how?.amex ? "Amex" : "sin Amex";
+  await editMessage(chatId, messageId, `${summary(pending.payload)} → ${OWNER_LABEL[owner]} · ${paid}\n\n${title}`, rows);
+  await answerCallback(callbackId);
 }
 
 async function paymentMethods(person: Person) {
@@ -281,15 +409,15 @@ async function userIdOf(person: Person | null): Promise<string> {
 
 async function save(
   pending: Pending,
-  how: { amex: boolean; methodId: string | null },
+  concept: { id: string; name: string },
   chatId: number,
   messageId: number,
   callbackId: string,
 ) {
   const owner = pending.owner as Owner;
   const p = pending.payload;
+  const how: How = p.how ?? { amex: p.amex, methodId: null };
   const db = createAdminClient();
-  const concept = await conceptFor(owner, p.description);
   // Con Amex: consta la persona del Balance (en Casa, quien escribe). Sin Amex: quien escribe.
   const paidBy: Person = how.amex && isPerson(owner) ? owner : pending.person;
   const { data, error } = await db
