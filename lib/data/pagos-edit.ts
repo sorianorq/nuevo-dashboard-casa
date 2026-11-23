@@ -129,7 +129,8 @@ export async function savePayment(id: string | null, input: PaymentInput): Promi
   const existing = id ? await loadExisting(id) : null;
 
   // Quién pagó: Andrea o Ricardo. «otros» solo si el gasto antiguo ya lo tenía.
-  if (input.paidBy === "otros" && !(existing?.paid_by === "otros" && input.amex)) {
+  // «otros» = Casa, solo con la Amex (sin traspaso).
+  if (input.paidBy === "otros" && !(input.amex && input.owner === "casa")) {
     throw new Error("Elige quién pagó: Andrea o Ricardo.");
   }
   // Con Amex en un Balance personal, consta como pagado por esa persona.
@@ -185,7 +186,8 @@ export async function savePayment(id: string | null, input: PaymentInput): Promi
     wallet,
     payment_method_id: paymentMethodId,
     concept_id: conceptId,
-    pending: input.amex ? input.pending === true : false,
+    // Pendiente de traspaso solo con la Amex y si lo paga una persona (Casa no traspasa).
+    pending: input.amex && input.paidBy !== "otros" ? input.pending === true : false,
     comments: c.comment,
   };
   const supabase = await createClient();

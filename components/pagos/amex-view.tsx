@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRight, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -10,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatAmount, formatDate, formatDayHeading } from "@/lib/format";
-import { balanceOf, type Payment } from "@/lib/calc/pagos";
+import { todayIso } from "@/lib/months";
+import { amexPayer, type Payment } from "@/lib/calc/pagos";
 import { OWNER_LABEL, type Owner } from "@/lib/balance";
 import type { AmexData } from "@/lib/data/pagos";
 import { markTransferredAction } from "@/app/(app)/movimientos/pagos-actions";
@@ -36,7 +38,9 @@ export function AmexView({ data, monthLabel, monthNav, ...shared }: Props) {
 
   const describe = (p: Payment) =>
     p.purchaseId && !p.conceptId ? "Supermercado" : ((p.conceptId && data.refs[p.conceptId]?.name) || "Sin concepto");
-  const balance = (p: Payment) => OWNER_LABEL[balanceOf(p, data.refs)];
+  // «Quién lo paga»: Ricardo / Andrea (traspasan) o Casa (sin traspaso).
+  const balance = (p: Payment) => OWNER_LABEL[amexPayer(p)];
+  useLiveRefresh();
 
   return (
     <>
@@ -73,6 +77,7 @@ export function AmexView({ data, monthLabel, monthNav, ...shared }: Props) {
 
         <div className="contents lg:flex lg:flex-col lg:gap-5">
           <Kpis data={data} monthLabel={monthLabel} />
+          <CycleCard cycle={data.cycle} />
           <ExpenseList
             rows={data.month}
             describe={describe}
@@ -111,8 +116,8 @@ function Kpis({ data, monthLabel }: { data: Props["data"]; monthLabel: string })
       <ul className="mt-3.5 grid grid-cols-3 gap-2">
         {owners.map((o) => (
           <li key={o} className="min-w-0 rounded-[10px] bg-brand-soft px-2.5 py-2">
-            <span className="block text-xs text-muted-foreground">{OWNER_LABEL[o]}</span>
-            <span className="block truncate text-sm font-bold tabular-nums">{formatAmount(data.byBalance[o])}</span>
+            <span className="block text-xs text-muted-foreground">{o === "casa" ? "Casa (sin traspaso)" : OWNER_LABEL[o]}</span>
+            <span className="block truncate text-sm font-bold tabular-nums">{formatAmount(data.byPayer[o])}</span>
           </li>
         ))}
       </ul>
@@ -275,8 +280,8 @@ function ExpenseList({
             className="h-9 min-w-0 border-0 bg-transparent px-0 text-foreground shadow-none focus-visible:ring-0"
           />
         </label>
-        <select aria-label="Balance" value={who} onChange={(e) => setWho(e.target.value as Owner | "")} className={cn(select, "min-w-0")}>
-          <option value="">Balance: todos</option>
+        <select aria-label="Lo paga" value={who} onChange={(e) => setWho(e.target.value as Owner | "")} className={cn(select, "min-w-0")}>
+          <option value="">Lo paga: todos</option>
           <option value="casa">Casa</option>
           <option value="ricardo">Ricardo</option>
           <option value="andrea">Andrea</option>
@@ -339,7 +344,7 @@ function ExpenseList({
                 <tr className="text-left text-xs font-bold tracking-wide text-muted-foreground uppercase">
                   <th scope="col" className="border-b px-3.5 py-3">Fecha</th>
                   <th scope="col" className="border-b px-3.5 py-3">Descripción</th>
-                  <th scope="col" className="border-b px-3.5 py-3">Balance</th>
+                  <th scope="col" className="border-b px-3.5 py-3">Lo paga</th>
                   <th scope="col" className="border-b px-3.5 py-3">Concepto</th>
                   <th scope="col" className="border-b px-3.5 py-3">Estado</th>
                   <th scope="col" className="border-b px-3.5 py-3 text-right">Importe</th>
@@ -412,4 +417,82 @@ function EditDialog({ payment, shared, onClose }: { payment: Payment | null; sha
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * Cuadre en vivo del periodo de la Amex (del 27 al 26, se cobra hacia el 2):
+ * por persona, lo gastado, lo ya traspasado a la cuenta de Casa y lo pendiente.
+ */
+function CycleCard({ cycle }: { cycle: Props["data"]["cycle"] }) {
+  const short = (iso: string) => formatDate(iso).slice(0, 5);
+  // Cerrado cuando ya ha pasado el día de corte.
+  const closed = todayIso() > cycle.to;
+  const people = [
+    ["Ricardo", cycle.ricardo],
+    ["Andrea", cycle.andrea],
+  ] as const;
+  return (
+    <section aria-labelledby="cycle-title" className="order-2 rounded-card border bg-card p-4 lg:order-none lg:p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 id="cycle-title" className="text-base font-bold">
+          Cuadre del periodo
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          {short(cycle.from)} – {short(cycle.to)} · {closed ? "cerrado" : "en curso"} · total {formatAmount(cycle.total)}
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[20rem] text-sm">
+          <thead>
+            <tr className="text-left text-xs text-muted-foreground">
+              <th scope="col" className="pb-2 font-semibold">Lo paga</th>
+              <th scope="col" className="pb-2 text-right font-semibold">Gastado</th>
+              <th scope="col" className="pb-2 text-right font-semibold">Traspasado</th>
+              <th scope="col" className="pb-2 text-right font-semibold">Pendiente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {people.map(([name, c]) => (
+              <tr key={name} className="border-t">
+                <th scope="row" className="py-2 text-left font-semibold">{name}</th>
+                <td className="py-2 text-right tabular-nums">{formatAmount(c.total)}</td>
+                <td className="py-2 text-right text-positive tabular-nums">{formatAmount(c.transferred)}</td>
+                <td className={cn("py-2 text-right font-bold tabular-nums", c.pending > 0 ? "text-warning" : "text-muted-foreground")}>
+                  {formatAmount(c.pending)}
+                </td>
+              </tr>
+            ))}
+            <tr className="border-t text-muted-foreground">
+              <th scope="row" className="py-2 text-left font-semibold">Casa (sin traspaso)</th>
+              <td className="py-2 text-right tabular-nums">{formatAmount(cycle.casa)}</td>
+              <td className="py-2 text-right">—</td>
+              <td className="py-2 text-right">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * «En vivo»: vuelve a pedir los datos cada 30 s mientras la pestaña está a la
+ * vista y al volver a ella (así se ven los gastos apuntados desde Telegram o
+ * desde otro móvil sin recargar).
+ */
+function useLiveRefresh() {
+  const router = useRouter();
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    const id = window.setInterval(tick, 30_000);
+    document.addEventListener("visibilitychange", tick);
+    window.addEventListener("focus", tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+      window.removeEventListener("focus", tick);
+    };
+  }, [router]);
 }

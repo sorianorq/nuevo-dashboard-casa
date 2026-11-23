@@ -34,12 +34,13 @@ const SOURCES: LinkSource[] = ["movimientos", "pagos", "supermercado"];
  *
  * Origen de cada concepto enlazado (decisión de Ricardo, 18/11/2026):
  * - movimientos → `transactions` del Balance con `flow = 'normal'`;
- * - Pagos y Amex (`amex_expenses`) con concepto suman en ese concepto enlazado
- *   SEA CUAL SEA su origen (decisión de Ricardo, 18/11/2026: al apuntar un gasto
- *   en Pagos se marca «AMEX» y se elige el concepto). No hay doble conteo: el
- *   cargo de la tarjeta en el banco es `card_settlement` y no suma. Se excluyen
- *   las que vienen de una compra de Supermercado, que ya cuentan en su
- *   concepto de Supermercado;
+ * - Gastos apuntados a mano SIN Amex (`amex_expenses` con `wallet` = la persona:
+ *   Bankinter, efectivo…) con concepto suman en ese concepto enlazado, sea cual
+ *   sea su origen. Los de la **Amex** (`wallet = 'amex'`) NO suman en ningún
+ *   Balance (decisión de Ricardo, 23/11/2026): la lista de la Amex es un registro
+ *   aparte para controlar los traspasos; el gasto cuenta en el Balance personal
+ *   por la transferencia del banco y en Casa por el cargo de la Amex. Tampoco
+ *   los que vienen de una compra de Supermercado (cuentan en su concepto);
  * - supermercado → `supermarket_purchases` con ese concepto; las compras sin
  *   concepto van a «Compra» de Casa (el concepto de Casa con ese origen).
  */
@@ -102,6 +103,7 @@ export async function getBalance(
             .select("id, expense_date, amount, concept_id")
             .in("concept_id", pagosIds)
             .is("purchase_id", null)
+            .neq("wallet", "amex")
             .gte("expense_date", from)
             .lte("expense_date", to)
             .order("id")

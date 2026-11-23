@@ -138,12 +138,12 @@ export function PaymentForm(props: PaymentFormProps) {
    * Quién consta como pagador: con Amex, la persona del Balance (en Casa, el
    * que ya tenía o quien apunta); sin Amex, el dueño del medio de pago.
    */
+  // Con Amex, «Lo paga»: la persona (traspasa a la cuenta de Casa) o Casa
+  // (sin traspaso; en la base de datos «otros»). Decisión de Ricardo, 23/11/2026.
   const paidBy: PaidBy = amex
     ? isPerson(owner)
       ? owner
-      : payment?.wallet === "amex" && payment.paidBy
-        ? payment.paidBy
-        : me
+      : "otros"
     : payment && payment.wallet !== "amex" && isPerson(payment.paidBy)
       ? payment.paidBy
       : me;
@@ -207,7 +207,7 @@ export function PaymentForm(props: PaymentFormProps) {
         owner,
         conceptId,
         paymentMethodId: amex ? null : methodId,
-        pending: amex && pending,
+        pending: amex && owner !== "casa" && pending,
         comment,
       });
       if (!res.ok) return void toast.error(res.error);
@@ -286,7 +286,7 @@ export function PaymentForm(props: PaymentFormProps) {
       </div>
 
       <fieldset className="space-y-1.5">
-        <legend className={label}>Balance</legend>
+        <legend className={label}>{amex ? "Lo paga" : "Balance"}</legend>
         <div className="flex flex-wrap gap-2">
           {owners.map((o) => (
             <Chip
@@ -317,7 +317,7 @@ export function PaymentForm(props: PaymentFormProps) {
         idPrefix={idPrefix}
         person={paidBy === "otros" ? me : paidBy}
         pendingSlot={
-          <label className="flex min-h-11 items-center gap-3 px-3 text-sm font-semibold">
+          owner !== "casa" && <label className="flex min-h-11 items-center gap-3 px-3 text-sm font-semibold">
             <input
               type="checkbox"
               checked={pending}
@@ -496,7 +496,7 @@ function PaymentMeans({
         <span>
           Amex
           <span className="block text-xs font-normal text-muted-foreground">
-            Márcala si se pagó con la American Express: sale también en su lista.
+            Márcala si se pagó con la American Express: va a su lista (no suma en el Balance; cuenta el traspaso o el cargo en Casa).
           </span>
         </span>
       </label>

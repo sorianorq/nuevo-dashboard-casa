@@ -2,6 +2,9 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { isOwner, isPerson, OWNER_LABEL, OWNERS, type Owner, type Person } from "@/lib/balance";
 import {
+  amexCycle,
+  amexPayer,
+  amexPeriod,
   balanceOf,
   isPaidBy,
   round2,
@@ -129,8 +132,10 @@ export type AmexData = {
   pending: Payment[];
   spent: number;
   pendingTotal: number;
-  /** Gastado en el mes por Balance (el del concepto; sin concepto, el de quien pagó). */
-  byBalance: Record<Owner, number>;
+  /** Gastado en el mes según quién lo paga (Ricardo, Andrea o Casa sin traspaso). */
+  byPayer: Record<Owner, number>;
+  /** Cuadre del periodo de la Amex que cierra el 26 de este mes (del 27 anterior al 26). */
+  cycle: ReturnType<typeof amexCycle> & { from: string; to: string };
   concepts: PagosConcept[];
   /** false = falta el script 08 (no se ven los conceptos del otro). */
   conceptsComplete: boolean;
@@ -142,7 +147,8 @@ export type AmexData = {
 export async function getAmex(ym: YearMonth): Promise<AmexData> {
   const ctx = await getDataContext();
   const supabase = await createClient();
-  const [monthRows, pendingRows, { concepts, complete }, history] = await Promise.all([
+  const period = amexPeriod(ym);
+  const [monthRows, pendingRows, periodRows, { concepts, complete }, history] = await Promise.all([
     fetchAll((a, b) =>
       supabase
         .from("amex_expenses")
@@ -156,6 +162,16 @@ export async function getAmex(ym: YearMonth): Promise<AmexData> {
     fetchAll((a, b) =>
       supabase.from("amex_expenses").select(COLUMNS).eq("wallet", "amex").eq("pending", true).order("id").range(a, b),
     ),
+    fetchAll((a, b) =>
+      supabase
+        .from("amex_expenses")
+        .select(COLUMNS)
+        .eq("wallet", "amex")
+        .gte("expense_date", period.from)
+        .lte("expense_date", period.to)
+        .order("id")
+        .range(a, b),
+    ),
     listPagosConcepts(ctx),
     suggestionHistory(),
   ]);
@@ -165,17 +181,19 @@ export async function getAmex(ym: YearMonth): Promise<AmexData> {
   const pending = pendingRows.map(toPayment).sort(byDate);
   const ids = [...month, ...pending].map((p) => p.conceptId).filter((id): id is string => id !== null);
   const refs = await conceptRefs(ctx, concepts, ids);
-  const byBalance: Record<Owner, number> = { casa: 0, andrea: 0, ricardo: 0 };
+  const byPayer: Record<Owner, number> = { casa: 0, andrea: 0, ricardo: 0 };
   for (const p of month) {
-    const o = balanceOf(p, refs);
-    byBalance[o] = round2(byBalance[o] + p.amount);
+    const o = amexPayer(p);
+    byPayer[o] = round2(byPayer[o] + p.amount);
   }
+  const cycle = { ...amexCycle(periodRows.map(toPayment)), ...period };
   return {
     month,
     pending,
     spent: round2(month.reduce((s, p) => s + p.amount, 0)),
     pendingTotal: round2(pending.reduce((s, p) => s + p.amount, 0)),
-    byBalance,
+    byPayer,
+    cycle,
     concepts,
     conceptsComplete: complete,
     refs,
@@ -225,8 +243,10 @@ export type ManualRow = {
  *  - con concepto: en la del Balance de su concepto;
  *  - sin concepto: en la de quien lo pagó (los antiguos «otros», en Casa),
  *    que es el Balance que propone el formulario.
- * Los de la Amex salen además en la pestaña Amex.
- * Las compras del Súper (`purchase_id`) no entran: cuentan en Supermercado.
+ * Solo los pagados SIN Amex (Bankinter, efectivo…): los de la Amex solo salen
+ * en la pestaña Amex y no suman en ningún Balance (decisión de Ricardo,
+ * 23/11/2026). Las compras del Súper (`purchase_id`) no entran: cuentan en
+ * Supermercado.
  */
 export async function listManualPayments(ctx: DataContext, ym: YearMonth, owner: Owner): Promise<ManualRow[]> {
   if (!ctx.allowedOwners.includes(owner)) throw new Error("Balance no permitido para este usuario");
@@ -238,6 +258,8 @@ export async function listManualPayments(ctx: DataContext, ym: YearMonth, owner:
         .from("amex_expenses")
         .select(COLUMNS)
         .is("purchase_id", null)
+        // Los de la Amex no suman en los Balances: solo salen en la pestaña Amex.
+        .neq("wallet", "amex")
         .gte("expense_date", monthStart(ym))
         .lte("expense_date", monthEnd(ym))
         .order("id")

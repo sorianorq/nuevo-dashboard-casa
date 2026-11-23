@@ -281,6 +281,24 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   concepto manual). En Presupuesto, la casilla es la partida del mes (vacía = sin partida).
   Subtotales, totales y resultado se recalculan al momento en el navegador (`applyCellEdits` /
   `recalcSheet` en `lib/calc/balance.ts`) y luego llega la hoja guardada. Ordenador y móvil.
+- **Modelo operativo de la Amex, explicado por Ricardo el 23/11/2026** (sustituye a lo
+  anterior sobre gastos de la Amex en los Balances):
+  - se paga con la Amex (Ricardo o Andrea) → se apunta en la **lista de la Amex** como
+    pendiente → cada uno **transfiere desde su cuenta** (Ricardo: Bankinter) **a la cuenta de
+    Casa** donde se carga la Amex → se marca como traspasado. Algunos gastos (la compra) **no se
+    traspasan**: son de Casa. La Amex se cobra hacia el día 2; el extracto **cierra el 26**;
+  - por eso la **lista de la Amex es un registro aparte y NO suma en ningún Balance**
+    (`.neq("wallet","amex")` en `lib/data/balance.ts` y en `listManualPayments`): el gasto
+    cuenta en el Balance personal por la transferencia del extracto y en Casa por el cargo de
+    la Amex (concepto Casa › Amex). Los gastos a mano **sin** Amex (Bankinter, efectivo…)
+    siguen sumando (decisión de Ricardo; ojo con cargar luego ese gasto desde el extracto);
+  - en un gasto de la Amex se elige **«Lo paga»: Casa · Ricardo · Andrea** (formulario y bot).
+    Persona → pendiente de traspaso por defecto; Casa → `paid_by = 'otros'`, nunca pendiente.
+    El concepto se sigue pidiendo, solo informativo. Compras del Súper con Amex → Casa, sin
+    traspaso. Reglas en `lib/calc/pagos.ts` (`amexPayer`, `amexPeriod`, `amexCycle`);
+  - pestaña Amex: resumen y filtro por «Lo paga» y **cuadre del periodo** (27 → 26) por
+    persona: gastado, traspasado, pendiente; y Casa (sin traspaso). **En vivo**: la pestaña se
+    refresca cada 30 s y al volver a ella. Comprobado: periodo 27/10–26/11 = base de datos.
 - **Bot de Telegram para apuntar gastos (20/11/2026):** mensaje libre → Claude
   (`claude-opus-5-5`, esfuerzo bajo, salida estructurada, `fallbacks: "default"`;
   `lib/telegram/parse.ts`) saca importe, descripción, fecha, Amex y medio de pago → botones

@@ -89,7 +89,9 @@ async function syncAmex(
     expense_date: input.date,
     concept: `Supermercado · ${c.store}`,
     amount: c.total,
-    paid_by: input.paidBy,
+    // La compra con Amex la paga Casa: sin traspaso (decisión de Ricardo, 23/11/2026).
+    paid_by: "otros",
+    pending: false,
     wallet: "amex",
     concept_id: await compraConceptId(),
   };
@@ -99,7 +101,7 @@ async function syncAmex(
   } else {
     const { error: insError } = await supabase
       .from("amex_expenses")
-      .insert({ ...fields, user_id: userId, purchase_id: purchaseId, pending: true });
+      .insert({ ...fields, user_id: userId, purchase_id: purchaseId });
     if (insError) throw dbError(insError);
   }
 }

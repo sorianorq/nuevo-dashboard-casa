@@ -19,8 +19,9 @@ import { parseExpense, type ParsedExpense } from "./parse";
  *     están en la app (los que ofrece el formulario de gastos a mano), con el
  *     sugerido arriba (⭐) y los grupos (subtotales) que se abren. Si solo hay
  *     uno, se usa sin preguntar.
- *  5. Se guarda en amex_expenses (pendiente de traspaso si es Amex y no va a
- *     Casa). Botón «Deshacer».
+ *  5. Se guarda en amex_expenses. Con Amex, el primer botón es «¿Quién lo
+ *     paga?»: la persona (pendiente de traspaso) o Casa (sin traspaso); no suma
+ *     en ningún Balance (decisión de Ricardo, 23/11/2026). Botón «Deshacer».
  *
  * Solo atiende a los usuarios de TELEGRAM_USERS («idTelegram:persona,…»).
  * Escribe con la clave de servicio (sin sesión): las reglas van aquí.
@@ -119,7 +120,8 @@ async function handleMessage(msg: TgMessage) {
     .select("id")
     .single();
   if (error) throw new Error(`telegram_pending: ${error.message}`);
-  await sendMessage(chatId, `${summary(payload)}\n\n¿A qué Balance va?`, balanceKeyboard(String(data.id)));
+  // Con Amex se pregunta quién lo paga (Casa = sin traspaso); sin Amex, a qué Balance va.
+  await sendMessage(chatId, `${summary(payload)}\n\n${payload.amex ? "¿Quién lo paga?" : "¿A qué Balance va?"}`, balanceKeyboard(String(data.id)));
 }
 
 function balanceKeyboard(pendingId: string): Keyboard {
@@ -328,8 +330,8 @@ async function askConcept(pending: Pending, chatId: number, messageId: number, c
       : [{ text: "Cancelar", callback_data: `x:${pid}` }],
   );
   const how = pending.payload.how;
-  const paid = how?.amex ? "Amex" : "sin Amex";
-  await editMessage(chatId, messageId, `${summary(pending.payload)} → ${OWNER_LABEL[owner]} · ${paid}\n\n${title}`, rows);
+  const head = how?.amex ? `Amex · lo paga ${OWNER_LABEL[owner]}` : `${OWNER_LABEL[owner]} · sin Amex`;
+  await editMessage(chatId, messageId, `${summary(pending.payload)} → ${head}\n\n${title}`, rows);
   await answerCallback(callbackId);
 }
 
@@ -418,8 +420,9 @@ async function save(
   const p = pending.payload;
   const how: How = p.how ?? { amex: p.amex, methodId: null };
   const db = createAdminClient();
-  // Con Amex: consta la persona del Balance (en Casa, quien escribe). Sin Amex: quien escribe.
-  const paidBy: Person = how.amex && isPerson(owner) ? owner : pending.person;
+  // Con Amex: lo paga la persona elegida (traspasa) o Casa («otros», sin traspaso).
+  // Sin Amex: quien escribe (dueño del medio de pago).
+  const paidBy: Person | "otros" = how.amex ? (isPerson(owner) ? owner : "otros") : pending.person;
   const { data, error } = await db
     .from("amex_expenses")
     .insert({
@@ -444,15 +447,17 @@ async function save(
   }
   await db.from("telegram_pending").update({ expense_id: data.id }).eq("id", pending.id);
 
-  const where = how.amex ? `Amex${owner !== "casa" ? " · pendiente de traspaso" : ""}` : "sin Amex";
+  const line = how.amex
+    ? `Amex · ${owner === "casa" ? "Casa (sin traspaso)" : `lo paga ${OWNER_LABEL[owner]} · pendiente de traspaso`} · ${concept.name}`
+    : `${OWNER_LABEL[owner]} › ${concept.name} · sin Amex`;
   await editMessage(
     chatId,
     messageId,
-    `✅ Guardado\n${money(p.amount)} · ${p.description || "Sin descripción"}\n${OWNER_LABEL[owner]} › ${concept.name} · ${formatDate(p.date)} · ${where}`,
+    `✅ Guardado\n${money(p.amount)} · ${p.description || "Sin descripción"} · ${formatDate(p.date)}\n${line}`,
     [
       [
         { text: "Deshacer", callback_data: `u:${pending.id}` },
-        { text: "Ver en la app", url: `${APP_URL}/movimientos${owner === "casa" ? "" : "?balance=personal"}` },
+        { text: "Ver en la app", url: `${APP_URL}/movimientos${how.amex ? "?ver=amex" : owner === "casa" ? "" : "?balance=personal"}` },
       ],
     ],
   );
