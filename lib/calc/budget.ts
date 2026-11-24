@@ -1,10 +1,9 @@
 /**
- * Presupuesto (fase 5): reglas puras.
- * - Gastado de una partida = «Real» del Balance en ese mes (misma regla).
- * - Previsión a fin de mes (solo mes en curso): lo automático se proyecta al
- *   ritmo de los días transcurridos; lo escrito a mano (fijos) no.
- * - Propuesta: media de los últimos 6 meses cerrados, sin meses atípicos
- *   (los que pasan del doble de la mediana), redondeada al euro.
+ * Presupuesto: reglas puras.
+ * - Presupuesto = importe fijo al mes por concepto (igual todos los meses).
+ * - Gastado de un concepto = «Real» del Balance en ese mes (misma regla).
+ * - Media: últimos 6 meses cerrados, sin meses atípicos (los que pasan del
+ *   doble de la mediana), redondeada al euro. Sirve para rellenar importes.
  */
 import type { ConceptSection } from "@/lib/labels";
 
@@ -15,21 +14,15 @@ export type BudgetLine = {
   name: string;
   section: ConceptSection;
   parentName: string | null;
-  linkSource: string | null;
-  /** Real del mes (null en meses futuros). */
-  spent: number | null;
+  /** Real del mes. */
+  spent: number;
+  /** Presupuesto fijo al mes (null = sin presupuesto). */
   budget: number | null;
-  /** Previsión a fin de mes (solo mes en curso). */
-  forecast: number | null;
+  /** Media de los 6 meses cerrados anteriores (null si no hubo gasto). */
+  average: number | null;
 };
 
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-
-/** Gasto proyectado al ritmo del mes: automático × días del mes / días transcurridos. */
-export function projectLine(spent: number, automatic: boolean, day: number, daysInMonth: number) {
-  if (!automatic || day <= 0) return round2(spent);
-  return round2((spent * daysInMonth) / day);
-}
 
 /** Media de los meses sin atípicos (> 2 × mediana), redondeada al euro. */
 export function proposeFromHistory(values: number[]): number | null {

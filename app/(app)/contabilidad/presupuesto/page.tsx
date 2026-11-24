@@ -3,11 +3,11 @@ import { Suspense } from "react";
 import { BalanceSwitcher } from "@/components/layout/balance-switcher";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSkeleton } from "@/components/layout/page-skeleton";
-import { MonthNav } from "@/components/resumen/month-nav";
+import { MonthSelect } from "@/components/resumen/month-select";
 import { BudgetView } from "@/components/presupuesto/budget-view";
 import { getBudget, getDataContext } from "@/lib/data";
 import { formatMonth } from "@/lib/format";
-import { addMonths, compareYm, parseYm, todayIso, ymKey, ymOf } from "@/lib/months";
+import { compareYm, parseYm, todayIso, ymOf } from "@/lib/months";
 
 export const metadata: Metadata = { title: "Presupuesto" };
 
@@ -30,10 +30,10 @@ async function Content({ searchParams }: { searchParams: SP }) {
   const ctx = await getDataContext(sp);
   const today = todayIso();
   const currentYm = ymOf(today);
-  // Se puede preparar el presupuesto hasta 12 meses por delante.
-  const maxYm = addMonths(currentYm, 12);
+  // El presupuesto es fijo: el mes solo elige qué gasto se compara (desde enero del año pasado).
+  const minYm = { year: currentYm.year - 1, month: 1 };
   const requested = parseYm(typeof sp.mes === "string" ? sp.mes : undefined);
-  const ym = requested && compareYm(requested, maxYm) <= 0 ? requested : currentYm;
+  const ym = requested && compareYm(requested, currentYm) <= 0 && compareYm(requested, minYm) >= 0 ? requested : currentYm;
 
   const data = await getBudget(ctx, ym, today);
   const params: Record<string, string> = ctx.tab === "personal" ? { balance: "personal" } : {};
@@ -44,9 +44,9 @@ async function Content({ searchParams }: { searchParams: SP }) {
         role={ctx.role}
         person={ctx.person}
         tab={ctx.tab}
-        aside={<MonthNav ym={ym} maxYm={maxYm} defaultYm={currentYm} pathname={PATH} params={params} />}
+        aside={<MonthSelect ym={ym} minYm={minYm} maxYm={currentYm} pathname={PATH} params={params} />}
       />
-      <BudgetView tab={ctx.tab} month={ymKey(ym)} monthLabel={formatMonth(ym.year, ym.month)} data={data} />
+      <BudgetView tab={ctx.tab} monthLabel={formatMonth(ym.year, ym.month)} data={data} />
     </>
   );
 }

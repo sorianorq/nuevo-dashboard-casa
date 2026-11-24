@@ -17,7 +17,6 @@ import {
 } from "@/lib/data";
 import { parseBalanceTab } from "@/lib/balance";
 import { SECTION_ORDER, type ConceptSection } from "@/lib/labels";
-import { todayIso } from "@/lib/months";
 import type { LinkSource } from "@/lib/calc/balance";
 
 /**
@@ -187,7 +186,7 @@ export async function saveConceptNote(tab: string, conceptId: string, text: stri
   });
 }
 
-/** Modo manual, vista Presupuesto: la partida de un concepto en un mes (null = quitarla). */
+/** Modo manual, vista Presupuesto: el presupuesto fijo al mes del concepto (vale para todos los meses; null = quitarlo). */
 export async function saveBudgetCell(tab: string, input: { conceptId: string; year: number; month: number; amount: number | null }) {
   return run(async () => {
     if (
@@ -200,7 +199,7 @@ export async function saveBudgetCell(tab: string, input: { conceptId: string; ye
       throw new Error("Datos no válidos.");
     }
     const ctx = await ctxFor(tab);
-    await setBudgets(ctx, { year: input.year, month: input.month }, todayIso(), [{ conceptId: input.conceptId, amount: input.amount }]);
+    await setBudgets(ctx, [{ conceptId: input.conceptId, amount: input.amount }]);
     refresh();
     return {};
   });

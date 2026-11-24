@@ -152,7 +152,16 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    se borraron. Sin errores ni scroll horizontal.
    - «+ Nuevo concepto» no está en el formulario: por la decisión de Ricardo se sugiere uno
      parecido o va a «Otros gastos»; los conceptos se crean en Balances.
-8. **Fase 5 · Presupuesto y alta rápida.** Presupuesto **hecho y probado** (18/11/2026,
+8. **Presupuesto rehecho (24/11/2026, script 13 ejecutado por Ricardo).** Decisión de Ricardo:
+   un **importe fijo al mes por concepto**, igual todos los meses (`andrea_concepts.monthly_budget`;
+   `monthly_budgets` queda sin uso). Pantalla: mes en desplegable (solo elige qué gasto se compara),
+   resumen «Gastado X de Y» con barra, «Quedan / Te pasas» y gastado sin presupuesto; una tabla por
+   bloque (Gastos, Inversión): Concepto · Presup./mes · Gastado · Queda, con Total; «Editar» pone
+   todos los importes en casillas y «Rellenar vacíos con la media» (6 meses cerrados, sin atípicos).
+   Ingresos no se presupuestan aquí. Balances usa ese importe en todos los meses (Presupuesto y
+   Desvío); en el modo manual, cambiarlo en un mes lo cambia en todos. Probado con la sesión de
+   Ricardo (guardar, quitar, rellenar; 390 y 1440 px, sin errores); el importe de prueba se quitó.
+   _Versión anterior (por meses), sustituida:_ **Fase 5 · Presupuesto y alta rápida.** Presupuesto **hecho y probado** (18/11/2026,
    script 10 ejecutado por Ricardo): pestañas Casa | persona (selector admin), mes ‹ › hasta 12
    meses por delante, gastado / presupuestado de Gastos con % y previsión a fin de mes,
    partidas por bloque (Gastos, Ahorro, Ingresos) con barra, «quedan X €» y naranja desde el

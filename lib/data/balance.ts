@@ -58,7 +58,7 @@ export async function getBalance(
   const conceptRows = await fetchAll((a, b) =>
     supabase
       .from("andrea_concepts")
-      .select("id, concept, section, kind, parent_id, link_source, sort_order, archived, periodicity")
+      .select("id, concept, section, kind, parent_id, link_source, sort_order, archived, periodicity, monthly_budget")
       .eq("owner", ctx.owner)
       .order("id")
       .range(a, b),
@@ -83,7 +83,7 @@ export async function getBalance(
   // Compras sin concepto → «Compra» de Casa (especificación funcional, 5.5).
   const defaultSuper = ctx.owner === "casa" && superIds.length === 1 ? superIds[0] : null;
 
-  const [tx, pagos, compras, manualRows, budgetRows, commentRows, periodicityRows, hidden] = await Promise.all([
+  const [tx, pagos, compras, manualRows, commentRows, periodicityRows, hidden] = await Promise.all([
     fetchAll((a, b) =>
       supabase
         .from("transactions")
@@ -125,15 +125,6 @@ export async function getBalance(
       supabase
         .from("andrea_balance")
         .select("id, month, concept, concept_id, amount")
-        .eq("owner", ctx.owner)
-        .eq("year", year)
-        .order("id")
-        .range(a, b),
-    ),
-    fetchAll((a, b) =>
-      supabase
-        .from("monthly_budgets")
-        .select("id, month, concept_id, budget_amount")
         .eq("owner", ctx.owner)
         .eq("year", year)
         .order("id")
@@ -223,14 +214,12 @@ export async function getBalance(
     manual.set(id, arr);
   }
 
+  // Presupuesto: importe fijo al mes de cada concepto (script 13), igual todos los meses.
   const budget = new Map<string, MonthValues>();
-  for (const r of budgetRows) {
-    const month = Number(r.month);
-    const id = String(r.concept_id ?? "");
-    if (!byId.has(id) || !(month >= 1 && month <= MONTHS)) continue;
-    const arr = budget.get(id) ?? Array.from({ length: MONTHS }, () => null);
-    arr[month - 1] = round2((arr[month - 1] ?? 0) + num(r.budget_amount));
-    budget.set(id, arr);
+  for (const r of conceptRows) {
+    if (r.kind === "subtotal" || r.monthly_budget === null || r.monthly_budget === undefined) continue;
+    const amount = round2(num(r.monthly_budget));
+    budget.set(String(r.id), Array.from({ length: MONTHS }, () => amount));
   }
 
   const sheet = buildBalanceSheet({ concepts, linked, manual, budget, monthsElapsed, includeArchived: opts.includeArchived });

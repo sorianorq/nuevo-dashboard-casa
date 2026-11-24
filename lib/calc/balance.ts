@@ -276,7 +276,8 @@ export function applyCellEdits(
     const budget = [...r.budget];
     const manualOverride = [...r.manualOverride];
     for (const e of mine) {
-      if (e.field === "budget") budget[e.month] = e.value;
+      // Presupuesto fijo: cambiarlo en un mes lo cambia en todos.
+      if (e.field === "budget") budget.fill(e.value);
       else if (e.value !== null) {
         real[e.month] = e.value;
         manualOverride[e.month] = r.kind === "linked";
