@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSkeleton } from "@/components/layout/page-skeleton";
-import { MonthNav } from "@/components/resumen/month-nav";
+import { MonthSelect } from "@/components/resumen/month-select";
 import { StatCard } from "@/components/resumen/stat-card";
 import { CategoryList, Evolution, StoreList } from "@/components/supermercado/breakdowns";
 import { PurchaseHistory } from "@/components/supermercado/purchase-history";
@@ -44,7 +44,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/supermercad
   return (
     <PurchaseEditor stores={stores} today={today} me={ctx.person}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 lg:mb-6">
-        <MonthNav ym={ym} maxYm={currentYm} pathname={PATH} params={{}} />
+        <MonthSelect ym={ym} minYm={data.firstDate ? ymOf(data.firstDate) : ym} maxYm={currentYm} pathname={PATH} params={{}} />
         <NewPurchaseButton />
       </div>
 

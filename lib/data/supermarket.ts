@@ -21,6 +21,8 @@ export type SupermarketData = {
   stores: StoreSpend[];
   /** Compras del mes, de la más reciente a la más antigua. */
   purchases: Purchase[];
+  /** Fecha de la primera compra registrada (para el selector de mes). */
+  firstDate: string | null;
 };
 
 function toPurchase(r: Record<string, unknown>): Purchase {
@@ -97,5 +99,6 @@ export async function getSupermarket(ym: YearMonth, today: string): Promise<Supe
     categories: categoryBreakdown(purchases, ym, today, firstDate),
     stores: storeBreakdown(month),
     purchases: month,
+    firstDate,
   };
 }

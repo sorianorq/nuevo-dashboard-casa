@@ -107,6 +107,8 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    gasto por categoría (`catId`) frente a la media de 12 meses, por tienda, evolución de 12
    meses e historial con el detalle de cada compra. Comprobado: octubre de 2026 = suma
    directa en la base de datos (total, nº de compras, categorías); 390 y 1440 px sin errores.
+   24/11/2026: el mes se elige en un **desplegable** (`MonthSelect`, de la primera compra al
+   mes actual, agrupado por año) en lugar de las flechas ‹ ›.
    Entrega 2 **hecha y probada** el 18/11/2026 (script 07 ejecutado por Ricardo):
    «+ Nueva compra» (fecha, tienda con las habituales primero + «Otra», forma de pago,
    «Pagado por» si es Amex, cuadrícula de 14 categorías, líneas que se suman por categoría,
