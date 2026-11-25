@@ -152,6 +152,15 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    se borraron. Sin errores ni scroll horizontal.
    - «+ Nuevo concepto» no está en el formulario: por la decisión de Ricardo se sugiere uno
      parecido o va a «Otros gastos»; los conceptos se crean en Balances.
+8b. **Flujo de dinero (25/11/2026, script 14 ejecutado por Ricardo).** Contabilidad › Flujo de
+   dinero: diagrama compartido estilo draw.io (React Flow `@xyflow/react` 12.12.1) guardado en
+   `money_flow` (una fila `casa`, JSON validado con Zod en `lib/flow/model.ts`). Cuentas (Casa,
+   Ricardo, Andrea, Tarjeta, Externo) que se arrastran; flechas con importe (o variable), día del
+   mes, nota y «por confirmar» (discontinua); tocar para editar, invertir o borrar; «Calendario del
+   mes» con las flechas por día. Guardado automático (1,2 s) con control de versión
+   (`updated_at`): si otro lo cambió, no se pisa y avisa. Diagrama de partida con lo visto en los
+   extractos y el modelo de la Amex. Probado con la sesión de Ricardo (alta de cuenta, flecha
+   arrastrando, recargar, borrar; 390 y 1440 px, sin errores); filas de prueba borradas.
 8. **Presupuesto rehecho (24/11/2026, script 13 ejecutado por Ricardo).** Decisión de Ricardo:
    un **importe fijo al mes por concepto**, igual todos los meses (`andrea_concepts.monthly_budget`;
    `monthly_budgets` queda sin uso). Pantalla: mes en desplegable (solo elige qué gasto se compara),

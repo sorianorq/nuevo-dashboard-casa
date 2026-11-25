@@ -40,6 +40,7 @@ export const NAV: NavSection[] = [
     children: [
       { label: "Balances", href: "/contabilidad/balances" },
       { label: "Presupuesto", href: "/contabilidad/presupuesto" },
+      { label: "Flujo de dinero", href: "/contabilidad/flujo" },
     ],
   },
   {
