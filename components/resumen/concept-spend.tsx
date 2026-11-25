@@ -3,9 +3,9 @@ import { formatAmount, formatPercent, formatSignedAmount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Gasto por concepto: barras horizontales (una serie, color acento).
- * Si hay presupuesto, marca vertical y texto «de X €»; exceso en --warning
- * con ▲ y texto (el color nunca es la única señal).
+ * Gasto por concepto: barras horizontales (color de la serie Gastos).
+ * Si hay presupuesto, marca vertical y texto «de X €»; lo gastado de más va
+ * rayado, con ▲ y texto (el color nunca es la única señal).
  */
 export function ConceptSpend({ rows, total }: { rows: ConceptSpendRow[]; total: number }) {
   if (rows.length === 0) {
@@ -30,11 +30,21 @@ export function ConceptSpend({ rows, total }: { rows: ConceptSpendRow[]; total: 
               </p>
               <p className="amount font-bold">{formatAmount(r.amount)}</p>
             </div>
-            <div className="relative mt-1.5 h-2 rounded-full bg-track" aria-hidden>
+            <div className="relative mt-1.5 flex h-2 gap-0.5 rounded-full bg-track" aria-hidden>
               <div
-                className={cn("h-2 rounded-full", r.conceptId === null ? "bg-muted-foreground" : over ? "bg-warning" : "bg-brand")}
-                style={{ width: `${Math.max((r.amount / max) * 100, r.amount > 0 ? 1.5 : 0)}%` }}
+                className={cn("h-2 rounded-full", r.conceptId === null ? "bg-muted-foreground" : "bg-series-expense")}
+                style={{ width: `${Math.max(((over ? (r.budget as number) : r.amount) / max) * 100, r.amount > 0 ? 1.5 : 0)}%` }}
               />
+              {over && (
+                // Lo gastado de más, rayado (además del ▲ y el texto).
+                <div
+                  className="h-2 rounded-r-full"
+                  style={{
+                    width: `${((r.amount - (r.budget as number)) / max) * 100}%`,
+                    background: "repeating-linear-gradient(135deg, var(--warning) 0 3px, transparent 3px 6px)",
+                  }}
+                />
+              )}
               {r.budget !== null && (
                 <div
                   className="absolute -top-1 h-4 w-0.5 rounded-full bg-foreground"

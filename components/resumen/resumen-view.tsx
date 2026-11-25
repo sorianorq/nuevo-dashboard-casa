@@ -17,13 +17,26 @@ import { Delta } from "./delta";
 import { StatCard } from "./stat-card";
 import { SupermarketCard } from "./supermarket-card";
 import { TrendChart } from "./trend-chart";
+import { MiniBars } from "./mini-bars";
+import { MoneySplit } from "./money-split";
+import { BudgetPace } from "./budget-pace";
+
+export type ResumenBudget = {
+  spent: number;
+  budget: number;
+  invested: number;
+  investBudget: number;
+  day: number | null;
+  daysInMonth: number;
+  href: string;
+};
 
 /**
  * Resumen (especificación, apartado 7). Solo presentación.
  * Ordenador: 4 tarjetas en fila · gráfico ⅔ + Supermercado/Amex ⅓ ·
  * categorías en 2 columnas.
  */
-export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner }) {
+export function ResumenView({ summary, owner, budget }: { summary: Summary; owner: Owner; budget: ResumenBudget }) {
   const { current, previous, ym } = summary;
 
   const change = (a: number, b: number) => (b > 0 ? a / b - 1 : null);
@@ -41,6 +54,10 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
     </>
   );
 
+  const spark = (pick: (m: Summary["trend"][number]) => number | null) =>
+    summary.trend.map((m) => ({ title: formatMonthTitle(m.ym.year, m.ym.month), value: pick(m) }));
+  const sparkLabel = (what: string) => `${what} de los últimos 12 meses; el último es ${formatMonthTitle(ym.year, ym.month)}.`;
+
   return (
     <div className="space-y-4 lg:space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
@@ -48,6 +65,7 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
           label="Ingresos"
           value={formatAmount(current.income)}
           note={ytdNote(formatAmount(ytd.income))}
+          spark={<MiniBars points={spark((m) => m.income)} color="var(--series-income)" label={sparkLabel("Ingresos")} format={formatAmount} />}
           footer={
             <Delta
               value={incomeChange}
@@ -61,6 +79,7 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
           label="Gastos"
           value={formatAmount(current.expenses)}
           note={ytdNote(formatAmount(ytd.expenses))}
+          spark={<MiniBars points={spark((m) => m.expenses)} color="var(--series-expense)" label={sparkLabel("Gastos")} format={formatAmount} />}
           footer={
             <Delta
               value={expenseChange}
@@ -75,6 +94,7 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
           value={formatAmount(current.savings)}
           note={ytdNote(formatAmount(ytd.savings), ytd.savings < 0 ? "font-bold text-warning" : undefined)}
           valueClassName={current.savings < 0 ? "text-warning" : undefined}
+          spark={<MiniBars points={spark((m) => m.savings)} color="var(--series-savings)" label={sparkLabel("Ahorro")} format={formatAmount} />}
           footer={
             <Delta
               value={savingsDiff}
@@ -88,6 +108,14 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
           label="Tasa de ahorro"
           value={current.savingsRate === null ? "—" : formatPercent(current.savingsRate)}
           note={ytdNote(ytd.savingsRate === null ? "—" : formatPercent(ytd.savingsRate))}
+          spark={
+            <MiniBars
+              points={spark((m) => m.savingsRate)}
+              color="var(--series-savings)"
+              label={sparkLabel("Tasa de ahorro")}
+              format={formatPercent}
+            />
+          }
           footer={
             <Delta
               value={summary.savingsRateDeltaPoints}
@@ -97,6 +125,15 @@ export function ResumenView({ summary, owner }: { summary: Summary; owner: Owner
             />
           }
         />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <div className="min-w-0 lg:col-span-2">
+          <MoneySplit income={current.income} expenses={current.expenses} monthLabel={formatMonthTitle(ym.year, ym.month)} />
+        </div>
+        <div className="min-w-0">
+          <BudgetPace {...budget} />
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">

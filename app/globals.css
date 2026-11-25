@@ -37,6 +37,13 @@
   --warning: #b4500b;
   --track: #eeeae2;
 
+  /* Series de los gráficos (validadas con la skill dataviz: luminosidad, croma,
+     daltonismo y contraste sobre blanco). El color sigue al concepto en todo el
+     Resumen: ingresos, gastos, ahorro. */
+  --series-income: #008a7b;
+  --series-expense: #b06a14;
+  --series-savings: #5a55c8;
+
   /* Papeles de shadcn → tokens */
   --background: var(--bg);
   --foreground: var(--text);
@@ -110,6 +117,9 @@
   --color-brand-soft: var(--accent-soft);
   --color-positive: var(--positive);
   --color-warning: var(--warning);
+  --color-series-income: var(--series-income);
+  --color-series-expense: var(--series-expense);
+  --color-series-savings: var(--series-savings);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);

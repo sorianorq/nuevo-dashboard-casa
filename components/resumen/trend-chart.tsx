@@ -22,11 +22,11 @@ export type TrendPoint = {
   ahorro: number;
 };
 
-// Colores solo por tokens (estilo A). Orden fijo: ingresos, gastos, ahorro.
+// Colores de serie validados (globals.css). Orden fijo: ingresos, gastos, ahorro.
 const SERIES = [
-  { key: "ingresos", label: "Ingresos", color: "var(--positive)", kind: "bar" },
-  { key: "gastos", label: "Gastos", color: "var(--accent)", kind: "bar" },
-  { key: "ahorro", label: "Ahorro", color: "var(--text)", kind: "line" },
+  { key: "ingresos", label: "Ingresos", color: "var(--series-income)", kind: "bar" },
+  { key: "gastos", label: "Gastos", color: "var(--series-expense)", kind: "bar" },
+  { key: "ahorro", label: "Ahorro", color: "var(--series-savings)", kind: "line" },
 ] as const;
 
 /** Gráfico 12 meses: barras ingresos/gastos + línea de ahorro (un solo eje, €). */
@@ -69,16 +69,16 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
               cursor={{ fill: "var(--track)", fillOpacity: 0.6 }}
               content={(props) => <TrendTooltip active={props.active} payload={props.payload} />}
             />
-            <Bar dataKey="ingresos" name="Ingresos" fill="var(--positive)" radius={[4, 4, 0, 0]} maxBarSize={22} />
-            <Bar dataKey="gastos" name="Gastos" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={22} />
+            <Bar dataKey="ingresos" name="Ingresos" fill="var(--series-income)" radius={[4, 4, 0, 0]} maxBarSize={22} />
+            <Bar dataKey="gastos" name="Gastos" fill="var(--series-expense)" radius={[4, 4, 0, 0]} maxBarSize={22} />
             <Line
               dataKey="ahorro"
               name="Ahorro"
               type="linear"
-              stroke="var(--text)"
+              stroke="var(--series-savings)"
               strokeWidth={2}
-              dot={{ r: 4, fill: "var(--text)", stroke: "var(--surface)", strokeWidth: 2 }}
-              activeDot={{ r: 5, fill: "var(--text)", stroke: "var(--surface)", strokeWidth: 2 }}
+              dot={{ r: 4, fill: "var(--series-savings)", stroke: "var(--surface)", strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: "var(--series-savings)", stroke: "var(--surface)", strokeWidth: 2 }}
             />
           </ComposedChart>
         </ResponsiveContainer>

@@ -7,6 +7,7 @@ export function StatCard({
   valueClassName,
   footer,
   note,
+  spark,
 }: {
   label: string;
   value: string;
@@ -14,6 +15,8 @@ export function StatCard({
   footer?: React.ReactNode;
   /** Línea pequeña al pie (p. ej. «Acumulado 2026: …»). */
   note?: React.ReactNode;
+  /** Minigráfica de 12 meses bajo la cifra. */
+  spark?: React.ReactNode;
 }) {
   return (
     <section className="flex min-w-0 flex-col gap-1.5 rounded-card border bg-card p-4 lg:p-5">
@@ -26,6 +29,7 @@ export function StatCard({
       >
         {value}
       </p>
+      {spark && <div className="pt-1">{spark}</div>}
       {footer && <div className="min-h-4">{footer}</div>}
       {note && <p className="mt-0.5 border-t pt-1.5 text-[11px] leading-snug text-muted-foreground tabular-nums lg:truncate">{note}</p>}
     </section>
