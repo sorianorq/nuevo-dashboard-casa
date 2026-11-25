@@ -477,8 +477,8 @@ function CycleCard({ cycle }: { cycle: Props["data"]["cycle"] }) {
 
 /**
  * «En vivo»: vuelve a pedir los datos cada 30 s mientras la pestaña está a la
- * vista y al volver a ella (así se ven los gastos apuntados desde Telegram o
- * desde otro móvil sin recargar).
+ * vista y al volver a ella (así se ven los gastos apuntados
+ * desde otro móvil u ordenador sin recargar).
  */
 function useLiveRefresh() {
   const router = useRouter();

@@ -383,7 +383,16 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   - pestaña Amex: resumen y filtro por «Lo paga» y **cuadre del periodo** (27 → 26) por
     persona: gastado, traspasado, pendiente; y Casa (sin traspaso). **En vivo**: la pestaña se
     refresca cada 30 s y al volver a ella. Comprobado: periodo 27/10–26/11 = base de datos.
-- **Bot de Telegram para apuntar gastos (20/11/2026):** mensaje libre → Claude
+- **RETIRADO el 25/11/2026 (decisión de Ricardo): ya no hay bot de Telegram.** Los gastos se
+  apuntan desde la app (píldoras «Gasto» y «Ticket» del móvil, ➕). Hecho: webhook quitado en
+  Telegram (`deleteWebhook`, sin mensajes pendientes); borrados `app/api/telegram`,
+  `lib/telegram/` y `lib/supabase/admin.ts` (la app ya no usa la clave de servicio); `/api/telegram`
+  fuera de las rutas públicas del proxy. Los gastos que se apuntaron por Telegram siguen en
+  Movimientos. Pendiente de Ricardo: **script 16** (opcional, borra `telegram_pending`); quitar
+  de Vercel `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_USERS` y
+  `SUPABASE_SERVICE_ROLE_KEY`; opcional, borrar @rqs_casa_bot en BotFather (/deletebot).
+  Lo que sigue es cómo era (histórico):
+- ~~Bot de Telegram para apuntar gastos (20/11/2026)~~: mensaje libre → Claude
   (`claude-opus-5-5`, esfuerzo bajo, salida estructurada, `fallbacks: "default"`;
   `lib/telegram/parse.ts`) saca importe, descripción, fecha, Amex y medio de pago → botones
   **Casa · Ricardo · Andrea** → si no es Amex y no se dijo el medio, botones con los de quien

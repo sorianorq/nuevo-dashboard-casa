@@ -1,8 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// /api/telegram: webhook del bot (sin sesión; lo protege su clave secreta).
-const PUBLIC_PATHS = ["/login", "/api/telegram"];
+const PUBLIC_PATHS = ["/login"];
 
 /**
  * Refresca la sesión de Supabase en cada petición y redirige a /login si no
