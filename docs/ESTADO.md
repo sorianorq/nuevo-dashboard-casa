@@ -164,7 +164,8 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    Flechas movibles (25/11/2026): asa ⠿ en la etiqueta para desplazar la flecha (`bend`, ruta
    ortogonal propia en `bentPath`; doble clic = ruta automática) y extremos arrastrables a otro
    punto u otra cuenta (`onReconnect`, mueve todas las líneas de esa flecha). Probado sobre el
-   diagrama real de Ricardo con copia previa; restaurado idéntico. Guardado automático (1,2 s) con control de versión
+   diagrama real de Ricardo con copia previa; restaurado idéntico. Botón «Guardar» (25/11/2026)
+   para guardar al momento (aviso «Diagrama guardado.»), además del guardado automático (1,2 s) con control de versión
    (`updated_at`): si otro lo cambió, no se pisa y avisa. Diagrama de partida con lo visto en los
    extractos y el modelo de la Amex. Probado con la sesión de Ricardo (alta de cuenta, flecha
    arrastrando, recargar, borrar; 390 y 1440 px, sin errores); filas de prueba borradas.

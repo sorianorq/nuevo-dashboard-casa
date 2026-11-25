@@ -27,7 +27,7 @@ import {
   type NodeChange,
   type NodeProps,
 } from "@xyflow/react";
-import { ArrowRightLeft, Check, GripHorizontal, Loader2, Maximize, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Check, GripHorizontal, Loader2, Maximize, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -373,25 +373,58 @@ function Editor({ initial }: { initial: FlowData }) {
     setState((s) => (s === "conflict" ? s : "dirty"));
   }, []);
 
-  // Guardado automático 1,2 s después del último cambio.
-  useEffect(() => {
-    if (changes === 0 || state === "conflict") return;
-    const t = setTimeout(() => {
-      setState("saving");
-      startSave(async () => {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlight = useRef(false);
+  const again = useRef(false);
+
+  /** Guarda ya (botón «Guardar» o el guardado automático). */
+  const saveNow = (manual = false) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    if (state === "conflict") return;
+    // Si ya se está guardando, se repite al terminar con lo último.
+    if (inFlight.current) {
+      again.current = true;
+      return;
+    }
+    inFlight.current = true;
+    setState("saving");
+    startSave(async () => {
+      try {
         const res = await saveFlowAction(toDoc(nodes, edges), base.current);
         if (res.ok) {
           base.current = res.updatedAt;
           setState("saved");
+          if (manual && !again.current) toast.success("Diagrama guardado.");
         } else if (res.conflict) {
+          again.current = false;
           setState("conflict");
         } else {
+          again.current = false;
           setState("error");
           toast.error(res.error ?? "No se pudo guardar.");
         }
-      });
-    }, 1200);
-    return () => clearTimeout(t);
+      } catch {
+        again.current = false;
+        setState("error");
+        toast.error("No se pudo guardar. Revisa la conexión y pulsa Guardar.");
+      } finally {
+        inFlight.current = false;
+        if (again.current) {
+          again.current = false;
+          touch();
+        }
+      }
+    });
+  };
+
+  // Guardado automático 1,2 s después del último cambio.
+  useEffect(() => {
+    if (changes === 0 || state === "conflict") return;
+    timer.current = setTimeout(() => saveNow(), 1200);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
     // Solo al cambiar el contador: nodes/edges se leen en el momento de guardar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [changes]);
@@ -608,8 +641,15 @@ function Editor({ initial }: { initial: FlowData }) {
               <Maximize aria-hidden /> Ver todo
             </Button>
           </Panel>
-          <Panel position="top-right" className="!m-2">
+          <Panel position="top-right" className="!m-2 flex items-center gap-2">
             <SaveBadge state={state} />
+            <Button
+              onClick={() => saveNow(true)}
+              disabled={state === "saved" || state === "saving" || state === "conflict"}
+              className="h-10 rounded-xl px-3 shadow-sm"
+            >
+              {state === "saving" ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />} Guardar
+            </Button>
           </Panel>
         </ReactFlow>
       </div>
@@ -618,7 +658,7 @@ function Editor({ initial }: { initial: FlowData }) {
         Arrastra las cuentas para colocarlas. Para una flecha nueva, arrastra desde uno de los puntos de una cuenta hasta
         otra, o añádela en la lista de transferencias. Para que no se pisen, arrastra el asa ⠿ de una flecha (doble clic
         la devuelve a su sitio) o lleva uno de sus extremos a otro punto de la cuenta. Toca una cuenta o una transferencia para cambiarla o borrarla. Se
-        guarda solo y lo ven los dos.
+        guarda solo al poco de cada cambio, o al momento con «Guardar», y lo ven los dos.
       </p>
 
       <TransferList
