@@ -45,6 +45,12 @@ export const FlowEdge = z.object({
   note: text(120),
   /** false = flecha discontinua «por confirmar». */
   confirmed: z.boolean(),
+  /** Punto por el que pasa la flecha si se ha movido a mano (null = ruta automática). */
+  bend: z
+    .object({ x: z.number().finite(), y: z.number().finite() })
+    .nullable()
+    .optional()
+    .transform((v) => v ?? null),
 });
 export type FlowEdge = z.infer<typeof FlowEdge>;
 
@@ -85,6 +91,7 @@ export const STARTER_FLOW: FlowDoc = {
       day: null,
       note: "Traspaso de lo que Ricardo paga con la Amex",
       confirmed: true,
+      bend: null,
     },
     {
       id: "e-and-casa",
@@ -96,6 +103,7 @@ export const STARTER_FLOW: FlowDoc = {
       day: null,
       note: "Traspaso de lo que Andrea paga con la Amex",
       confirmed: true,
+      bend: null,
     },
     {
       id: "e-casa-amex",
@@ -107,6 +115,7 @@ export const STARTER_FLOW: FlowDoc = {
       day: 2,
       note: "Cargo de la Amex (lo gastado del 27 al 26)",
       confirmed: true,
+      bend: null,
     },
     {
       id: "e-casa-ahorro",
@@ -118,6 +127,7 @@ export const STARTER_FLOW: FlowDoc = {
       day: null,
       note: "¿Ahorro de Casa?",
       confirmed: false,
+      bend: null,
     },
     {
       id: "e-op-prestamo",
@@ -129,6 +139,7 @@ export const STARTER_FLOW: FlowDoc = {
       day: 25,
       note: "Pago préstamo (visto hasta marzo 2026)",
       confirmed: false,
+      bend: null,
     },
     {
       id: "e-op-ahorro",
@@ -140,6 +151,7 @@ export const STARTER_FLOW: FlowDoc = {
       day: 25,
       note: "Apartijo varios (visto hasta marzo 2026)",
       confirmed: false,
+      bend: null,
     },
   ],
 };

@@ -27,7 +27,7 @@ import {
   type NodeChange,
   type NodeProps,
 } from "@xyflow/react";
-import { ArrowRightLeft, Check, Loader2, Maximize, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Check, GripHorizontal, Loader2, Maximize, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,8 @@ type MoneyData = {
   day: number | null;
   note: string;
   confirmed: boolean;
+  /** Punto por el que pasa la flecha si se ha movido a mano. */
+  bend?: { x: number; y: number } | null;
   /** Solo para dibujar: todas las transferencias entre estas dos cuentas (una flecha, varias líneas). */
   lines?: { id: string; amount: number | null; day: number | null; note: string; confirmed: boolean }[];
 };
@@ -86,7 +88,7 @@ function toFlow(doc: FlowDoc): { nodes: AccountNode[]; edges: MoneyEdge[] } {
       target: e.target,
       sourceHandle: e.sourceHandle,
       targetHandle: e.targetHandle,
-      data: { amount: e.amount, day: e.day, note: e.note, confirmed: e.confirmed },
+      data: { amount: e.amount, day: e.day, note: e.note, confirmed: e.confirmed, bend: e.bend },
     })),
   };
 }
@@ -114,6 +116,7 @@ function toDoc(nodes: AccountNode[], edges: MoneyEdge[]): FlowDoc {
       day: e.data?.day ?? null,
       note: e.data?.note ?? "",
       confirmed: e.data?.confirmed ?? true,
+      bend: e.data?.bend ? { x: Math.round(e.data.bend.x), y: Math.round(e.data.bend.y) } : null,
     })),
   };
 }
@@ -147,15 +150,119 @@ function AccountNodeView({ data, selected }: NodeProps<AccountNode>) {
   );
 }
 
-/** Abre la ventana de una transferencia desde la etiqueta de una flecha. */
-const OpenLineContext = createContext<(id: string) => void>(() => {});
+/** Acciones que las flechas piden al editor: abrir una línea y moverlas. */
+type EdgeActions = {
+  openLine: (id: string) => void;
+  /** Mueve la flecha (y las de su grupo) para que pase por `p`; null = ruta automática. */
+  setBend: (id: string, p: { x: number; y: number } | null, final: boolean) => void;
+  toFlowPosition: (p: { x: number; y: number }) => { x: number; y: number };
+};
+const EdgeActionsContext = createContext<EdgeActions>({ openLine: () => {}, setBend: () => {}, toFlowPosition: (p) => p });
 
 /** Orden de las líneas: por día (las sin día al final). */
 const byDay = (a: { day: number | null }, b: { day: number | null }) => (a.day ?? 99) - (b.day ?? 99);
 
+type Pt = { x: number; y: number };
+const isVertical = (p: Position) => p === Position.Top || p === Position.Bottom;
+
+/**
+ * Ruta ortogonal que pasa por el punto `bend` (flecha movida a mano):
+ * sale y entra perpendicular a cada cuenta, con esquinas redondeadas.
+ * Devuelve el trazado y dónde va la etiqueta.
+ */
+function bentPath(s: Pt, sp: Position, t: Pt, tp: Position, bend: Pt): [string, number, number] {
+  const sv = isVertical(sp);
+  const tv = isVertical(tp);
+  let pts: Pt[];
+  let label: Pt;
+  if (sv && tv) {
+    pts = [s, { x: s.x, y: bend.y }, { x: t.x, y: bend.y }, t];
+    label = { x: Math.min(Math.max(bend.x, Math.min(s.x, t.x)), Math.max(s.x, t.x)), y: bend.y };
+  } else if (!sv && !tv) {
+    pts = [s, { x: bend.x, y: s.y }, { x: bend.x, y: t.y }, t];
+    label = { x: bend.x, y: Math.min(Math.max(bend.y, Math.min(s.y, t.y)), Math.max(s.y, t.y)) };
+  } else if (sv) {
+    pts = [s, { x: s.x, y: bend.y }, bend, { x: bend.x, y: t.y }, t];
+    label = bend;
+  } else {
+    pts = [s, { x: bend.x, y: s.y }, bend, { x: t.x, y: bend.y }, t];
+    label = bend;
+  }
+  // Quitar puntos repetidos o en línea recta.
+  const clean = pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
+  const simple = clean.filter((p, i) => {
+    if (i === 0 || i === clean.length - 1) return true;
+    const a = clean[i - 1];
+    const b = clean[i + 1];
+    return !((a.x === p.x && p.x === b.x) || (a.y === p.y && p.y === b.y));
+  });
+  let d = `M${simple[0].x} ${simple[0].y}`;
+  for (let i = 1; i < simple.length - 1; i++) {
+    const a = simple[i - 1];
+    const p = simple[i];
+    const b = simple[i + 1];
+    const r = Math.min(12, Math.hypot(p.x - a.x, p.y - a.y) / 2, Math.hypot(b.x - p.x, b.y - p.y) / 2);
+    const inX = Math.sign(p.x - a.x);
+    const inY = Math.sign(p.y - a.y);
+    const outX = Math.sign(b.x - p.x);
+    const outY = Math.sign(b.y - p.y);
+    d += `L${p.x - inX * r} ${p.y - inY * r}Q${p.x} ${p.y} ${p.x + outX * r} ${p.y + outY * r}`;
+  }
+  const last = simple[simple.length - 1];
+  d += `L${last.x} ${last.y}`;
+  return [d, label.x, label.y];
+}
+
+/** Asa para mover una flecha: arrastrar = moverla; doble clic = volver a su sitio. */
+function BendGrip({ edgeId, className }: { edgeId: string; className?: string }) {
+  const { setBend, toFlowPosition } = useContext(EdgeActionsContext);
+  const drag = useRef<{ last: Pt | null } | null>(null);
+  return (
+    <span
+      role="button"
+      tabIndex={-1}
+      aria-label="Mover la flecha (doble clic: volver a su sitio)"
+      title="Arrastra para mover la flecha · doble clic para volver a su sitio"
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        drag.current = { last: null };
+      }}
+      onPointerMove={(e) => {
+        if (!drag.current) return;
+        const p = toFlowPosition({ x: e.clientX, y: e.clientY });
+        const pt = { x: Math.round(p.x), y: Math.round(p.y) };
+        drag.current.last = pt;
+        setBend(edgeId, pt, false);
+      }}
+      onPointerUp={(e) => {
+        e.stopPropagation();
+        const last = drag.current?.last ?? null;
+        drag.current = null;
+        if (last) setBend(edgeId, last, true);
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        setBend(edgeId, null, true);
+      }}
+      className={cn(
+        "flex cursor-move touch-none items-center justify-center text-[#8b8f99] hover:text-[#8a6a2f]",
+        className,
+      )}
+    >
+      <GripHorizontal className="size-3.5" aria-hidden />
+    </span>
+  );
+}
+
 function MoneyEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd, selected }: EdgeProps<MoneyEdge>) {
-  const openLine = useContext(OpenLineContext);
-  const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 12 });
+  const { openLine } = useContext(EdgeActionsContext);
+  const bend = data?.bend ?? null;
+  const [path, labelX, labelY] = bend
+    ? bentPath({ x: sourceX, y: sourceY }, sourcePosition, { x: targetX, y: targetY }, targetPosition, bend)
+    : getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 12 });
   const lines = data?.lines ?? (data ? [{ id, ...data }] : []);
   const confirmed = lines.some((l) => l.confirmed);
   const shown = lines.filter((l) => edgeLabel(l) || l.note);
@@ -172,6 +279,16 @@ function MoneyEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
           strokeDasharray: confirmed ? undefined : "6 5",
         }}
       />
+      {shown.length === 0 && (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan pointer-events-auto absolute rounded-full border bg-white p-1 shadow-sm"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+          >
+            <BendGrip edgeId={id} />
+          </div>
+        </EdgeLabelRenderer>
+      )}
       {shown.length > 0 && (
         <EdgeLabelRenderer>
           <div
@@ -182,6 +299,7 @@ function MoneyEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
             )}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
+            <BendGrip edgeId={id} className="h-3.5 w-full" />
             {[...shown].sort(byDay).map((l) => (
               <button
                 key={l.id}
@@ -366,6 +484,47 @@ function Editor({ initial }: { initial: FlowData }) {
     });
   }, [edges]);
 
+  const setBend = useCallback<EdgeActions["setBend"]>(
+    (id, p, final) => {
+      setEdges((es) => {
+        const first = es.find((e) => e.id === id);
+        if (!first) return es;
+        return es.map((e) =>
+          e.source === first.source && e.target === first.target ? { ...e, data: { ...(e.data as MoneyData), bend: p } } : e,
+        );
+      });
+      if (final) touch();
+    },
+    [setEdges, touch],
+  );
+  const edgeActions = useMemo<EdgeActions>(
+    () => ({ openLine: (id) => setDialog({ kind: "edge", id }), setBend, toFlowPosition: screenToFlowPosition }),
+    [setBend, screenToFlowPosition],
+  );
+
+  // Arrastrar un extremo de una flecha a otro punto (o a otra cuenta): se mueven todas sus líneas.
+  const onReconnect = useCallback(
+    (old: MoneyEdge, c: Connection) => {
+      if (!c.source || !c.target || c.source === c.target) return;
+      setEdges((es) =>
+        es.map((e) =>
+          e.source === old.source && e.target === old.target
+            ? {
+                ...e,
+                source: c.source,
+                target: c.target,
+                sourceHandle: c.sourceHandle ?? null,
+                targetHandle: c.targetHandle ?? null,
+                data: { ...(e.data as MoneyData), bend: null },
+              }
+            : e,
+        ),
+      );
+      touch();
+    },
+    [setEdges, touch],
+  );
+
   const saveLine = (id: string | null, line: { data: MoneyData; source: string; target: string }) => {
     const from = nodes.find((n) => n.id === line.source);
     const to = nodes.find((n) => n.id === line.target);
@@ -384,7 +543,7 @@ function Editor({ initial }: { initial: FlowData }) {
         source: line.source,
         target: line.target,
         ...handles,
-        data: line.data,
+        data: { ...line.data, bend: sameEnds ? (current.data?.bend ?? null) : (sibling?.data?.bend ?? null) },
       };
       return current ? es.map((e) => (e.id === id ? edge : e)) : [...es, edge];
     });
@@ -410,7 +569,7 @@ function Editor({ initial }: { initial: FlowData }) {
         </div>
       )}
 
-      <OpenLineContext.Provider value={(id) => setDialog({ kind: "edge", id })}>
+      <EdgeActionsContext.Provider value={edgeActions}>
       <div
         ref={wrapper}
         className="h-[62dvh] min-h-[420px] overflow-hidden rounded-card border bg-card lg:h-[68dvh]"
@@ -425,6 +584,8 @@ function Editor({ initial }: { initial: FlowData }) {
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
+          onReconnect={onReconnect}
+          reconnectRadius={14}
           onNodeClick={(_, n) => setDialog({ kind: "node", id: n.id })}
           onEdgeClick={(_, e) => setDialog({ kind: "edge", id: e.id })}
           connectionMode={ConnectionMode.Loose}
@@ -452,10 +613,11 @@ function Editor({ initial }: { initial: FlowData }) {
           </Panel>
         </ReactFlow>
       </div>
-      </OpenLineContext.Provider>
+      </EdgeActionsContext.Provider>
       <p className="text-xs text-muted-foreground">
         Arrastra las cuentas para colocarlas. Para una flecha nueva, arrastra desde uno de los puntos de una cuenta hasta
-        otra, o añádela en la lista de transferencias. Toca una cuenta o una transferencia para cambiarla o borrarla. Se
+        otra, o añádela en la lista de transferencias. Para que no se pisen, arrastra el asa ⠿ de una flecha (doble clic
+        la devuelve a su sitio) o lleva uno de sus extremos a otro punto de la cuenta. Toca una cuenta o una transferencia para cambiarla o borrarla. Se
         guarda solo y lo ven los dos.
       </p>
 

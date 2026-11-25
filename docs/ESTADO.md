@@ -160,7 +160,11 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    «Transferencias del mes» (25/11/2026, petición de Ricardo): una línea por transferencia (Desde,
    Hacia, importe, día, para qué) con «+ Transferencia», ordenadas por día, total al mes y lo que
    sale de cada cuenta. Varias transferencias entre las mismas dos cuentas = una flecha con todas
-   sus líneas en la etiqueta (cada una se abre al tocarla). Guardado automático (1,2 s) con control de versión
+   sus líneas en la etiqueta (cada una se abre al tocarla).
+   Flechas movibles (25/11/2026): asa ⠿ en la etiqueta para desplazar la flecha (`bend`, ruta
+   ortogonal propia en `bentPath`; doble clic = ruta automática) y extremos arrastrables a otro
+   punto u otra cuenta (`onReconnect`, mueve todas las líneas de esa flecha). Probado sobre el
+   diagrama real de Ricardo con copia previa; restaurado idéntico. Guardado automático (1,2 s) con control de versión
    (`updated_at`): si otro lo cambió, no se pisa y avisa. Diagrama de partida con lo visto en los
    extractos y el modelo de la Amex. Probado con la sesión de Ricardo (alta de cuenta, flecha
    arrastrando, recargar, borrar; 390 y 1440 px, sin errores); filas de prueba borradas.
