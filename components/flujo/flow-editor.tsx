@@ -1,7 +1,7 @@
 "use client";
 
 import "@xyflow/react/dist/style.css";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   addEdge,
   Background,
@@ -27,7 +27,7 @@ import {
   type NodeChange,
   type NodeProps,
 } from "@xyflow/react";
-import { ArrowLeftRight, CalendarDays, Check, Loader2, Maximize, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Check, Loader2, Maximize, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,14 @@ import { saveFlowAction } from "@/app/(app)/contabilidad/flujo/actions";
 
 type AccountData = { label: string; detail: string; kind: FlowKind };
 type AccountNode = Node<AccountData, "account">;
-type MoneyData = { amount: number | null; day: number | null; note: string; confirmed: boolean };
+type MoneyData = {
+  amount: number | null;
+  day: number | null;
+  note: string;
+  confirmed: boolean;
+  /** Solo para dibujar: todas las transferencias entre estas dos cuentas (una flecha, varias líneas). */
+  lines?: { id: string; amount: number | null; day: number | null; note: string; confirmed: boolean }[];
+};
 type MoneyEdge = Edge<MoneyData, "money">;
 
 const KIND_STYLE: Record<FlowKind, { bar: string; chip: string }> = {
@@ -140,10 +147,19 @@ function AccountNodeView({ data, selected }: NodeProps<AccountNode>) {
   );
 }
 
+/** Abre la ventana de una transferencia desde la etiqueta de una flecha. */
+const OpenLineContext = createContext<(id: string) => void>(() => {});
+
+/** Orden de las líneas: por día (las sin día al final). */
+const byDay = (a: { day: number | null }, b: { day: number | null }) => (a.day ?? 99) - (b.day ?? 99);
+
 function MoneyEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd, selected }: EdgeProps<MoneyEdge>) {
+  const openLine = useContext(OpenLineContext);
   const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 12 });
-  const confirmed = data?.confirmed ?? true;
-  const top = data ? edgeLabel(data) : "";
+  const lines = data?.lines ?? (data ? [{ id, ...data }] : []);
+  const confirmed = lines.some((l) => l.confirmed);
+  const shown = lines.filter((l) => edgeLabel(l) || l.note);
+  const total = lines.every((l) => l.amount !== null) ? lines.reduce((t, l) => t + (l.amount ?? 0), 0) : null;
   return (
     <>
       <BaseEdge
@@ -152,28 +168,54 @@ function MoneyEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
         markerEnd={markerEnd}
         style={{
           stroke: selected ? "#8a6a2f" : confirmed ? "#14171f" : "#8b8f99",
-          strokeWidth: selected ? 2.5 : 1.75,
+          strokeWidth: selected ? 2.5 : lines.length > 1 ? 2.25 : 1.75,
           strokeDasharray: confirmed ? undefined : "6 5",
         }}
       />
-      {(top || data?.note) && (
+      {shown.length > 0 && (
         <EdgeLabelRenderer>
           <div
             className={cn(
-              "nodrag nopan pointer-events-auto absolute max-w-[180px] cursor-pointer rounded-lg border bg-white/95 px-2 py-1 text-center shadow-sm",
+              "nodrag nopan pointer-events-auto absolute max-w-[200px] rounded-lg border bg-white/95 py-0.5 shadow-sm",
               selected && "border-[#8a6a2f]",
               !confirmed && "border-dashed",
             )}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
-            {top && <p className="text-[11px] font-bold text-[#14171f] tabular-nums">{top}</p>}
-            {data?.note && <p className="text-[10px] leading-tight text-[#5b6170]">{data.note}</p>}
-            {!confirmed && <p className="text-[9px] font-bold tracking-wide text-[#b4500b] uppercase">por confirmar</p>}
+            {[...shown].sort(byDay).map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openLine(l.id);
+                }}
+                className="block w-full px-2 py-0.5 text-center hover:bg-[#f6efe2]"
+              >
+                {edgeLabel(l) && <span className="block text-[11px] font-bold text-[#14171f] tabular-nums">{edgeLabel(l)}</span>}
+                {l.note && <span className="block text-[10px] leading-tight text-[#5b6170]">{l.note}</span>}
+                {!l.confirmed && <span className="block text-[9px] font-bold tracking-wide text-[#b4500b] uppercase">por confirmar</span>}
+              </button>
+            ))}
+            {lines.length > 1 && total !== null && (
+              <span className="block border-t px-2 pt-0.5 text-center text-[10px] font-bold text-[#14171f] tabular-nums">
+                Total {formatAmount(total)}
+              </span>
+            )}
           </div>
         </EdgeLabelRenderer>
       )}
     </>
   );
+}
+
+/** Puntos de conexión según la posición relativa de las dos cuentas. */
+function autoHandles(from: AccountNode | undefined, to: AccountNode | undefined): { sourceHandle: FlowHandle; targetHandle: FlowHandle } {
+  if (!from || !to) return { sourceHandle: "b", targetHandle: "t" };
+  const dx = to.position.x - from.position.x;
+  const dy = to.position.y - from.position.y;
+  if (Math.abs(dy) >= 60) return dy > 0 ? { sourceHandle: "b", targetHandle: "t" } : { sourceHandle: "t", targetHandle: "b" };
+  return dx > 0 ? { sourceHandle: "r", targetHandle: "l" } : { sourceHandle: "l", targetHandle: "r" };
 }
 
 const nodeTypes = { account: AccountNodeView };
@@ -198,7 +240,9 @@ function Editor({ initial }: { initial: FlowData }) {
   const [edges, setEdges, onEdgesChange] = useEdgesState<MoneyEdge>(
     start.edges.map((e) => ({ ...e, markerEnd: defaultEdgeOptions.markerEnd })),
   );
-  const [dialog, setDialog] = useState<{ kind: "node"; id: string } | { kind: "edge"; id: string } | null>(null);
+  const [dialog, setDialog] = useState<
+    { kind: "node"; id: string } | { kind: "edge"; id: string } | { kind: "new-edge" } | null
+  >(null);
   const [state, setState] = useState<SaveState>("saved");
   const [changes, setChanges] = useState(0);
   const base = useRef<string | null>(initial.updatedAt);
@@ -298,6 +342,56 @@ function Editor({ initial }: { initial: FlowData }) {
     setDialog({ kind: "node", id });
   };
 
+  // Una flecha por pareja de cuentas (en el mismo sentido); su etiqueta lleva todas las líneas.
+  const displayEdges = useMemo(() => {
+    const groups = new Map<string, MoneyEdge[]>();
+    for (const e of edges) groups.set(`${e.source}>${e.target}`, [...(groups.get(`${e.source}>${e.target}`) ?? []), e]);
+    return edges.map((e) => {
+      const group = groups.get(`${e.source}>${e.target}`)!;
+      if (group[0].id !== e.id) return { ...e, hidden: true };
+      if (group.length === 1) return e;
+      return {
+        ...e,
+        data: {
+          ...(e.data as MoneyData),
+          lines: group.map((g) => ({
+            id: g.id,
+            amount: g.data?.amount ?? null,
+            day: g.data?.day ?? null,
+            note: g.data?.note ?? "",
+            confirmed: g.data?.confirmed ?? true,
+          })),
+        },
+      };
+    });
+  }, [edges]);
+
+  const saveLine = (id: string | null, line: { data: MoneyData; source: string; target: string }) => {
+    const from = nodes.find((n) => n.id === line.source);
+    const to = nodes.find((n) => n.id === line.target);
+    setEdges((es) => {
+      const current = id ? es.find((e) => e.id === id) : undefined;
+      const sameEnds = current && current.source === line.source && current.target === line.target;
+      // Si va entre las mismas cuentas que otra flecha, usa sus puntos (se dibujan juntas).
+      const sibling = es.find((e) => e.id !== id && e.source === line.source && e.target === line.target);
+      const handles = sameEnds
+        ? { sourceHandle: current.sourceHandle, targetHandle: current.targetHandle }
+        : sibling
+          ? { sourceHandle: sibling.sourceHandle, targetHandle: sibling.targetHandle }
+          : autoHandles(from, to);
+      const edge: MoneyEdge = {
+        ...(current ?? { id: newId("e"), ...defaultEdgeOptions }),
+        source: line.source,
+        target: line.target,
+        ...handles,
+        data: line.data,
+      };
+      return current ? es.map((e) => (e.id === id ? edge : e)) : [...es, edge];
+    });
+    touch();
+    setDialog(null);
+  };
+
   const editingNode = dialog?.kind === "node" ? nodes.find((n) => n.id === dialog.id) : undefined;
   const editingEdge = dialog?.kind === "edge" ? edges.find((e) => e.id === dialog.id) : undefined;
   const nameOf = (id: string) => nodes.find((n) => n.id === id)?.data.label ?? "?";
@@ -316,6 +410,7 @@ function Editor({ initial }: { initial: FlowData }) {
         </div>
       )}
 
+      <OpenLineContext.Provider value={(id) => setDialog({ kind: "edge", id })}>
       <div
         ref={wrapper}
         className="h-[62dvh] min-h-[420px] overflow-hidden rounded-card border bg-card lg:h-[68dvh]"
@@ -323,7 +418,7 @@ function Editor({ initial }: { initial: FlowData }) {
       >
         <ReactFlow<AccountNode, MoneyEdge>
           nodes={nodes}
-          edges={edges}
+          edges={displayEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
@@ -357,12 +452,20 @@ function Editor({ initial }: { initial: FlowData }) {
           </Panel>
         </ReactFlow>
       </div>
+      </OpenLineContext.Provider>
       <p className="text-xs text-muted-foreground">
         Arrastra las cuentas para colocarlas. Para una flecha nueva, arrastra desde uno de los puntos de una cuenta hasta
-        otra. Toca una cuenta o una flecha para cambiarla o borrarla. Se guarda solo y lo ven los dos.
+        otra, o añádela en la lista de transferencias. Toca una cuenta o una transferencia para cambiarla o borrarla. Se
+        guarda solo y lo ven los dos.
       </p>
 
-      <MonthCalendar edges={edges} nameOf={nameOf} onOpen={(id) => setDialog({ kind: "edge", id })} />
+      <TransferList
+        edges={edges}
+        nameOf={nameOf}
+        canAdd={nodes.length >= 2}
+        onAdd={() => setDialog({ kind: "new-edge" })}
+        onOpen={(id) => setDialog({ kind: "edge", id })}
+      />
 
       {editingNode && (
         <NodeDialog
@@ -383,31 +486,22 @@ function Editor({ initial }: { initial: FlowData }) {
           }}
         />
       )}
-      {editingEdge && (
+      {(editingEdge || dialog?.kind === "new-edge") && (
         <EdgeDialog
-          key={editingEdge.id}
-          edge={editingEdge}
-          from={nameOf(editingEdge.source)}
-          to={nameOf(editingEdge.target)}
+          key={editingEdge?.id ?? "new"}
+          edge={editingEdge ?? null}
+          accounts={nodes.map((n) => ({ id: n.id, label: n.data.label }))}
           onClose={() => setDialog(null)}
-          onSave={(data, flip) => {
-            setEdges((es) =>
-              es.map((e) =>
-                e.id !== editingEdge.id
-                  ? e
-                  : flip
-                    ? { ...e, data, source: e.target, target: e.source, sourceHandle: e.targetHandle, targetHandle: e.sourceHandle }
-                    : { ...e, data },
-              ),
-            );
-            touch();
-            setDialog(null);
-          }}
-          onDelete={() => {
-            setEdges((es) => es.filter((e) => e.id !== editingEdge.id));
-            touch();
-            setDialog(null);
-          }}
+          onSave={(line) => saveLine(editingEdge?.id ?? null, line)}
+          onDelete={
+            editingEdge
+              ? () => {
+                  setEdges((es) => es.filter((e) => e.id !== editingEdge.id));
+                  touch();
+                  setDialog(null);
+                }
+              : undefined
+          }
         />
       )}
     </div>
@@ -431,52 +525,110 @@ function SaveBadge({ state }: { state: SaveState }) {
   );
 }
 
-/** Lista de las flechas por día del mes: lo que hay que hacer y cuándo. */
-function MonthCalendar({ edges, nameOf, onOpen }: { edges: MoneyEdge[]; nameOf: (id: string) => string; onOpen: (id: string) => void }) {
-  const sorted = [...edges].sort((a, b) => (a.data?.day ?? 99) - (b.data?.day ?? 99));
+/**
+ * Transferencias a realizar: una línea por transferencia (cada una es una
+ * flecha del diagrama), ordenadas por día del mes, con lo que sale de cada cuenta.
+ */
+function TransferList({
+  edges,
+  nameOf,
+  canAdd,
+  onAdd,
+  onOpen,
+}: {
+  edges: MoneyEdge[];
+  nameOf: (id: string) => string;
+  canAdd: boolean;
+  onAdd: () => void;
+  onOpen: (id: string) => void;
+}) {
+  const sorted = [...edges].sort((a, b) => byDay({ day: a.data?.day ?? null }, { day: b.data?.day ?? null }));
+  const fixed = edges.filter((e) => e.data?.amount !== null && e.data?.amount !== undefined);
+  const total = fixed.reduce((t, e) => t + (e.data?.amount ?? 0), 0);
+  const variable = edges.length - fixed.length;
+  // Lo que sale de cada cuenta al mes (solo importes fijos).
+  const out = new Map<string, number>();
+  for (const e of fixed) out.set(e.source, (out.get(e.source) ?? 0) + (e.data?.amount ?? 0));
+
   return (
-    <section aria-labelledby="flow-calendar" className="rounded-card border bg-card p-4 lg:p-5">
-      <h2 id="flow-calendar" className="flex items-center gap-2 text-base font-bold">
-        <CalendarDays className="size-4 text-brand" aria-hidden /> Calendario del mes
-      </h2>
+    <section aria-labelledby="flow-transfers" className="rounded-card border bg-card p-4 lg:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="flow-transfers" className="text-base font-bold">
+          Transferencias del mes
+        </h2>
+        <Button onClick={onAdd} disabled={!canAdd} className="h-10 rounded-xl px-3">
+          <Plus aria-hidden /> Transferencia
+        </Button>
+      </div>
       {sorted.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">Aún no hay flechas.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Aún no hay transferencias. Añade la primera.</p>
       ) : (
-        <ul className="mt-2 divide-y">
-          {sorted.map((e) => {
-            const d = e.data;
-            return (
-              <li key={e.id}>
-                <button type="button" onClick={() => onOpen(e.id)} className="flex min-h-12 w-full items-center gap-3 py-2 text-left hover:bg-accent">
-                  <span className="w-14 shrink-0 text-center">
-                    {d?.day ? (
-                      <>
-                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">día</span>
-                        <span className="block text-lg leading-none font-extrabold tabular-nums">{d.day}</span>
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">sin día</span>
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">
-                      {nameOf(e.source)} → {nameOf(e.target)}
+        <>
+          <ul className="mt-2 divide-y">
+            {sorted.map((e) => {
+              const d = e.data;
+              return (
+                <li key={e.id}>
+                  <button type="button" onClick={() => onOpen(e.id)} className="flex min-h-12 w-full items-center gap-3 py-2 text-left hover:bg-accent">
+                    <span className="w-12 shrink-0 text-center">
+                      {d?.day ? (
+                        <>
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase">día</span>
+                          <span className="block text-lg leading-none font-extrabold tabular-nums">{d.day}</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">sin día</span>
+                      )}
                     </span>
-                    {(d?.note || d?.confirmed === false) && (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {d?.note}
-                        {d?.confirmed === false && <span className="ml-1 font-bold text-warning">· por confirmar</span>}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">
+                        {nameOf(e.source)} → {nameOf(e.target)}
                       </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-sm font-bold tabular-nums">
-                    {d?.amount !== null && d?.amount !== undefined ? formatAmount(d.amount) : <span className="font-normal text-muted-foreground">variable</span>}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                      {(d?.note || d?.confirmed === false) && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {d?.note}
+                          {d?.confirmed === false && <span className="ml-1 font-bold text-warning">· por confirmar</span>}
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-sm font-bold tabular-nums">
+                      {d?.amount !== null && d?.amount !== undefined ? (
+                        formatAmount(d.amount)
+                      ) : (
+                        <span className="font-normal text-muted-foreground">variable</span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-2 border-t pt-3">
+            <p className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="font-bold">Total al mes</span>
+              <span className="font-extrabold tabular-nums">{formatAmount(total)}</span>
+            </p>
+            {variable > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Más {variable} {variable === 1 ? "transferencia de importe variable" : "transferencias de importe variable"}.
+              </p>
+            )}
+            {out.size > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-bold text-muted-foreground">Sale de cada cuenta al mes</p>
+                <ul className="mt-1 flex flex-wrap gap-2">
+                  {[...out.entries()]
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([id, amount]) => (
+                      <li key={id} className="rounded-full border bg-surface px-3 py-1 text-xs">
+                        {nameOf(id)}: <strong className="tabular-nums">{formatAmount(amount)}</strong>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </section>
   );
@@ -573,57 +725,97 @@ function NodeDialog({
 
 function EdgeDialog({
   edge,
-  from,
-  to,
+  accounts,
   onClose,
   onSave,
   onDelete,
 }: {
-  edge: MoneyEdge;
-  from: string;
-  to: string;
+  edge: MoneyEdge | null;
+  accounts: { id: string; label: string }[];
   onClose: () => void;
-  onSave: (d: MoneyData, flip: boolean) => void;
-  onDelete: () => void;
+  onSave: (line: { data: MoneyData; source: string; target: string }) => void;
+  onDelete?: () => void;
 }) {
-  const d = edge.data ?? { amount: null, day: null, note: "", confirmed: true };
+  const d = edge?.data ?? { amount: null, day: null, note: "", confirmed: true };
+  const [source, setSource] = useState(edge?.source ?? accounts[0]?.id ?? "");
+  const [target, setTarget] = useState(edge?.target ?? accounts[1]?.id ?? "");
   const [amount, setAmount] = useState(toInput(d.amount));
   const [day, setDay] = useState(d.day ? String(d.day) : "");
   const [note, setNote] = useState(d.note);
   const [confirmed, setConfirmed] = useState(d.confirmed);
-  const [flip, setFlip] = useState(false);
 
   const parsedAmount = parseAmount(amount);
   const amountOk = amount.trim() === "" || (parsedAmount !== null && !Number.isNaN(parsedAmount) && parsedAmount >= 0);
   const dayNum = day.trim() === "" ? null : Number(day);
   const dayOk = dayNum === null || (Number.isInteger(dayNum) && dayNum >= 1 && dayNum <= 31);
-  const valid = amountOk && dayOk && note.trim().length <= 120;
+  const endsOk = source !== "" && target !== "" && source !== target;
+  const valid = endsOk && amountOk && dayOk && note.trim().length <= 120;
+  const selectClass =
+    "h-11 w-full min-w-0 rounded-xl border bg-surface px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {flip ? to : from} → {flip ? from : to}
-          </DialogTitle>
-          <DialogDescription>Qué dinero va de una cuenta a otra, cuánto y qué día del mes.</DialogDescription>
+          <DialogTitle>{edge ? "Transferencia" : "Nueva transferencia"}</DialogTitle>
+          <DialogDescription>De qué cuenta a cuál, cuánto y qué día del mes. Se dibuja como una flecha.</DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (!valid) return;
-            onSave(
-              {
+            onSave({
+              source,
+              target,
+              data: {
                 amount: amount.trim() === "" ? null : Math.round((parsedAmount as number) * 100) / 100,
                 day: dayNum,
                 note: note.trim(),
                 confirmed,
               },
-              flip,
-            );
+            });
           }}
           className="space-y-3"
         >
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+            <div className="min-w-0 space-y-1.5">
+              <label htmlFor="edge-from" className="text-xs font-bold text-muted-foreground">
+                Desde
+              </label>
+              <select id="edge-from" value={source} onChange={(e) => setSource(e.target.value)} className={selectClass}>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              aria-label="Cambiar el sentido"
+              onClick={() => {
+                setSource(target);
+                setTarget(source);
+              }}
+              className="size-11"
+            >
+              <ArrowRightLeft aria-hidden />
+            </Button>
+            <div className="min-w-0 space-y-1.5">
+              <label htmlFor="edge-to" className="text-xs font-bold text-muted-foreground">
+                Hacia
+              </label>
+              <select id="edge-to" value={target} onChange={(e) => setTarget(e.target.value)} className={selectClass}>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {!endsOk && <p className="text-xs font-bold text-warning">Elige dos cuentas distintas.</p>}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label htmlFor="edge-amount" className="text-xs font-bold text-muted-foreground">
@@ -672,13 +864,12 @@ function EdgeDialog({
             <input type="checkbox" checked={!confirmed} onChange={(e) => setConfirmed(!e.target.checked)} className="size-5 accent-[#8a6a2f]" />
             Por confirmar (se ve con línea discontinua)
           </label>
-          <Button type="button" variant="outline" onClick={() => setFlip((f) => !f)} className="h-11 w-full">
-            <ArrowLeftRight aria-hidden /> Cambiar el sentido de la flecha
-          </Button>
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onDelete} className="h-11 sm:mr-auto">
-              <Trash2 aria-hidden /> Borrar flecha
-            </Button>
+            {onDelete && (
+              <Button type="button" variant="outline" onClick={onDelete} className="h-11 sm:mr-auto">
+                <Trash2 aria-hidden /> Borrar
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={onClose} className="h-11">
               Cancelar
             </Button>
