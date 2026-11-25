@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronRight, Receipt, TriangleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronRight, Loader2, Receipt, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePurchaseEditor } from "./purchase-editor";
+import { getTicketPhoto } from "@/app/(app)/supermercado/actions";
 import { formatAmount, formatDate } from "@/lib/format";
 import { linesMismatch, type Purchase } from "@/lib/calc/supermarket";
 import { PAYMENT_TYPE_LABEL, SUPER_CATEGORIES, SUPER_CATEGORY_NAME, type PaymentType } from "@/lib/labels";
@@ -72,7 +73,7 @@ function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: ()
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{purchase.store?.trim() || "Compra"}</DialogTitle>
           <DialogDescription>
@@ -91,6 +92,9 @@ function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: ()
           <span className="text-[15px] font-bold">Total compra</span>
           <span className="text-2xl font-extrabold tabular-nums">{formatAmount(purchase.total)}</span>
         </div>
+        {purchase.ticketPath && purchase.ticketLines && (
+          <TicketView path={purchase.ticketPath} lines={purchase.ticketLines} />
+        )}
         {diff !== null && (
           <p role="note" className="flex gap-2 rounded-xl border border-warning/40 p-3 text-xs">
             <TriangleAlert className="size-4 shrink-0 text-warning" aria-hidden />
@@ -113,5 +117,54 @@ function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: ()
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Foto del ticket (enlace temporal) y las líneas que se leyeron, plegadas. */
+function TicketView({ path, lines }: { path: string; lines: { text: string; amount: number; catId: string }[] }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void getTicketPhoto(path).then((res) => {
+      if (!alive) return;
+      if (res.ok) setUrl(res.url);
+      else setFailed(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [path]);
+
+  return (
+    <section aria-label="Ticket" className="flex gap-3 rounded-xl border p-3">
+      {url ? (
+        <a href={url} target="_blank" rel="noreferrer" className="shrink-0" title="Ver la foto en grande">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt="Foto del ticket" className="h-28 w-20 rounded-lg border object-cover object-top" />
+        </a>
+      ) : (
+        <div className="grid h-28 w-20 shrink-0 place-items-center rounded-lg border bg-muted px-1 text-center text-[11px] text-muted-foreground">
+          {failed ? "Sin foto" : <Loader2 className="size-4 animate-spin" aria-hidden />}
+        </div>
+      )}
+      <details className="group min-w-0 flex-1">
+        <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-bold [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
+          {lines.length} {lines.length === 1 ? "línea leída" : "líneas leídas"} del ticket
+        </summary>
+        <ul className="mt-2 divide-y text-xs">
+          {lines.map((l, i) => (
+            <li key={i} className="flex items-baseline gap-2 py-1.5">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold">{l.text}</span>
+                <span className="text-muted-foreground">{SUPER_CATEGORY_NAME[l.catId] ?? l.catId}</span>
+              </span>
+              <span className="font-semibold tabular-nums">{formatAmount(l.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </section>
   );
 }

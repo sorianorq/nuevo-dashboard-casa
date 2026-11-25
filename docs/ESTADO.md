@@ -213,7 +213,10 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    limpian solas. Icono de ticket en el historial. Script 15: columnas `ticket_path`,
    `ticket_lines`, almacén privado y permisos (como Supermercado). Probado: lectura de un ticket de
    prueba tipo Mercadona (14 líneas, descuento, peso; 7 s, todo correcto) y pantalla en móvil sin
-   el script (aviso claro); falta la prueba completa tras el script 15.
+   el script (aviso claro). **Script 15 ejecutado por Ricardo (25/11/2026).** Prueba completa en móvil:
+   leer, cambiar una categoría, guardar (foto en `compras/<id>.jpg`, 14 líneas), resumen de la compra
+   con la foto y las líneas leídas (plegadas), editar con el ticket, borrar (la foto se borra); la
+   compra de prueba ya no existe. Sin errores.
 9. **Balances: colocar conceptos arrastrando la fila (25/11/2026, petición de Ricardo).** Asa ⋮⋮ al
    principio de cada fila (ordenador y móvil): se suelta entre dos filas del mismo bloque, sobre un
    subtotal para meterlo en ese grupo (resaltado) o al final del bloque; un subtotal se mueve con su
