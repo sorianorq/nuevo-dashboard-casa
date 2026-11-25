@@ -14,7 +14,9 @@ import { OWNER_LABEL, type Owner } from "@/lib/balance";
 import { AmexCard } from "./amex-card";
 import { ConceptSpend } from "./concept-spend";
 import { Delta } from "./delta";
-import { StatCard } from "./stat-card";
+import { SectionIcon, StatCard } from "./stat-card";
+import { AnimatedNumber } from "./animated-number";
+import { ArrowDownToLine, ArrowUpFromLine, ChartColumnBig, Gauge, LayoutList, PiggyBank } from "lucide-react";
 import { SupermarketCard } from "./supermarket-card";
 import { TrendChart } from "./trend-chart";
 import { MiniBars } from "./mini-bars";
@@ -62,8 +64,11 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
     <div className="space-y-4 lg:space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <StatCard
+          index={0}
+          icon={ArrowDownToLine}
+          tone="var(--series-income)"
           label="Ingresos"
-          value={formatAmount(current.income)}
+          value={<AnimatedNumber value={current.income} kind="amount" />}
           note={ytdNote(formatAmount(ytd.income))}
           spark={<MiniBars points={spark((m) => m.income)} color="var(--series-income)" label={sparkLabel("Ingresos")} format={formatAmount} />}
           footer={
@@ -76,8 +81,11 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
           }
         />
         <StatCard
+          index={1}
+          icon={ArrowUpFromLine}
+          tone="var(--series-expense)"
           label="Gastos"
-          value={formatAmount(current.expenses)}
+          value={<AnimatedNumber value={current.expenses} kind="amount" />}
           note={ytdNote(formatAmount(ytd.expenses))}
           spark={<MiniBars points={spark((m) => m.expenses)} color="var(--series-expense)" label={sparkLabel("Gastos")} format={formatAmount} />}
           footer={
@@ -90,8 +98,11 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
           }
         />
         <StatCard
+          index={2}
+          icon={PiggyBank}
+          tone="var(--series-savings)"
           label="Ahorro"
-          value={formatAmount(current.savings)}
+          value={<AnimatedNumber value={current.savings} kind="amount" />}
           note={ytdNote(formatAmount(ytd.savings), ytd.savings < 0 ? "font-bold text-warning" : undefined)}
           valueClassName={current.savings < 0 ? "text-warning" : undefined}
           spark={<MiniBars points={spark((m) => m.savings)} color="var(--series-savings)" label={sparkLabel("Ahorro")} format={formatAmount} />}
@@ -105,8 +116,11 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
           }
         />
         <StatCard
+          index={3}
+          icon={Gauge}
+          tone="var(--series-savings)"
           label="Tasa de ahorro"
-          value={current.savingsRate === null ? "—" : formatPercent(current.savingsRate)}
+          value={current.savingsRate === null ? "—" : <AnimatedNumber value={current.savingsRate} kind="percent" />}
           note={ytdNote(ytd.savingsRate === null ? "—" : formatPercent(ytd.savingsRate))}
           spark={
             <MiniBars
@@ -128,17 +142,22 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <div className="min-w-0 lg:col-span-2">
+        <div className="fc-rise min-w-0 lg:col-span-2" style={{ "--i": 4 } as React.CSSProperties}>
           <MoneySplit income={current.income} expenses={current.expenses} monthLabel={formatMonthTitle(ym.year, ym.month)} />
         </div>
-        <div className="min-w-0">
+        <div className="fc-rise min-w-0" style={{ "--i": 5 } as React.CSSProperties}>
           <BudgetPace {...budget} />
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <section className="min-w-0 rounded-card border bg-card p-4 lg:col-span-2 lg:p-5" aria-labelledby="trend-title">
-          <h2 id="trend-title" className="text-sm font-bold">
+        <section
+          className="fc-rise min-w-0 rounded-card border bg-card p-4 lg:col-span-2 lg:p-5"
+          style={{ "--i": 6 } as React.CSSProperties}
+          aria-labelledby="trend-title"
+        >
+          <h2 id="trend-title" className="flex items-center gap-2 text-sm font-bold">
+            <SectionIcon icon={ChartColumnBig} tone="var(--series-income)" />
             Últimos 12 meses
             <span className="ml-2 text-xs font-medium text-muted-foreground">Balance {OWNER_LABEL[owner]}</span>
           </h2>
@@ -155,15 +174,20 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
             />
           </div>
         </section>
-        <div className="flex min-w-0 flex-col gap-4 lg:gap-6">
+        <div className="fc-rise flex min-w-0 flex-col gap-4 lg:gap-6" style={{ "--i": 7 } as React.CSSProperties}>
           <SupermarketCard data={summary.supermarket} />
           <AmexCard monthSpent={summary.amex.monthSpent} pending={summary.amex.pending} />
         </div>
       </div>
 
-      <section className="rounded-card border bg-card p-4 lg:p-5" aria-labelledby="concepts-title">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="concepts-title" className="text-sm font-bold">
+      <section
+        className="fc-rise rounded-card border bg-card p-4 lg:p-5"
+        style={{ "--i": 8 } as React.CSSProperties}
+        aria-labelledby="concepts-title"
+      >
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="concepts-title" className="flex items-center gap-2 text-sm font-bold">
+            <SectionIcon icon={LayoutList} tone="var(--series-expense)" />
             Gasto por concepto
             <span className="ml-2 text-xs font-medium text-muted-foreground">
               {formatMonthTitle(ym.year, ym.month)}

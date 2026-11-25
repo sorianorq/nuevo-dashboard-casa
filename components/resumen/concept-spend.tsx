@@ -1,6 +1,7 @@
 import type { ConceptSpendRow } from "@/lib/data";
 import { formatAmount, formatPercent, formatSignedAmount } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { conceptIcon } from "./concept-icon";
 
 /**
  * Gasto por concepto: barras horizontales (color de la serie Gastos).
@@ -15,13 +16,21 @@ export function ConceptSpend({ rows, total }: { rows: ConceptSpendRow[]; total: 
 
   return (
     <ul className="grid gap-x-8 gap-y-3 lg:grid-cols-2">
-      {rows.map((r) => {
+      {rows.map((r, i) => {
+        const Icon = conceptIcon(r.name, r.parentName);
         const over = r.budget !== null && r.amount > r.budget;
         const share = total > 0 ? r.amount / total : 0;
         return (
           <li key={r.conceptId ?? "none"} className="min-w-0">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="min-w-0 truncate font-semibold">
+            <div className="flex items-center justify-between gap-3">
+              <span
+                aria-hidden
+                className="grid size-8 shrink-0 place-items-center rounded-xl"
+                style={{ background: "color-mix(in oklab, var(--series-expense) 12%, transparent)", color: "var(--series-expense)" }}
+              >
+                <Icon className="size-4" strokeWidth={2.2} />
+              </span>
+              <p className="min-w-0 flex-1 truncate font-semibold">
                 {r.name}
                 {r.parentName && (
                   <span className="ml-1.5 text-xs font-medium text-muted-foreground">{r.parentName}</span>
@@ -30,10 +39,10 @@ export function ConceptSpend({ rows, total }: { rows: ConceptSpendRow[]; total: 
               </p>
               <p className="amount font-bold">{formatAmount(r.amount)}</p>
             </div>
-            <div className="relative mt-1.5 flex h-2 gap-0.5 rounded-full bg-track" aria-hidden>
+            <div className="relative mt-1.5 ml-11 flex h-2 gap-0.5 rounded-full bg-track" aria-hidden>
               <div
-                className={cn("h-2 rounded-full", r.conceptId === null ? "bg-muted-foreground" : "bg-series-expense")}
-                style={{ width: `${Math.max(((over ? (r.budget as number) : r.amount) / max) * 100, r.amount > 0 ? 1.5 : 0)}%` }}
+                className={cn("fc-grow-x h-2 rounded-full", r.conceptId === null ? "bg-muted-foreground" : "bg-series-expense")}
+                style={{ width: `${Math.max(((over ? (r.budget as number) : r.amount) / max) * 100, r.amount > 0 ? 1.5 : 0)}%`, "--i": i } as React.CSSProperties}
               />
               {over && (
                 // Lo gastado de más, rayado (además del ▲ y el texto).
@@ -52,7 +61,7 @@ export function ConceptSpend({ rows, total }: { rows: ConceptSpendRow[]; total: 
                 />
               )}
             </div>
-            <p className="mt-1 flex flex-wrap justify-between gap-x-3 text-[11px] text-muted-foreground tabular-nums">
+            <p className="mt-1 ml-11 flex flex-wrap justify-between gap-x-3 text-[11px] text-muted-foreground tabular-nums">
               <span>{formatPercent(share)} del gasto</span>
               {r.budget !== null && (
                 <span className={cn(over && "font-bold text-warning")}>

@@ -34,7 +34,18 @@ export function MiniBars({
         const y = v >= 0 ? zero - h : zero;
         const last = i === points.length - 1;
         return (
-          <rect key={i} x={i * (bw + gap)} y={y} width={bw} height={h} rx={1.5} fill={color} opacity={last ? 1 : 0.32}>
+          <rect
+            key={i}
+            x={i * (bw + gap)}
+            y={y}
+            width={bw}
+            height={h}
+            rx={1.5}
+            fill={color}
+            opacity={last ? 1 : 0.32}
+            className="fc-grow-y"
+            style={{ "--i": i, transformOrigin: v >= 0 ? "bottom" : "top" } as React.CSSProperties}
+          >
             <title>{`${p.title}: ${p.value === null ? "sin dato" : format(p.value)}`}</title>
           </rect>
         );

@@ -1,4 +1,6 @@
+import { Coins } from "lucide-react";
 import { formatAmount, formatPercent } from "@/lib/format";
+import { SectionIcon } from "./stat-card";
 
 /**
  * «Adónde fue el dinero»: una sola barra con lo que entró en el mes, partida
@@ -34,7 +36,8 @@ export function MoneySplit({ income, expenses, monthLabel }: { income: number; e
   return (
     <section aria-labelledby="split-title" className="h-full rounded-card border bg-card p-4 lg:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 id="split-title" className="text-sm font-bold">
+        <h2 id="split-title" className="flex items-center gap-2 text-sm font-bold">
+          <SectionIcon icon={Coins} tone="var(--series-savings)" />
           Adónde fue el dinero
           <span className="ml-2 text-xs font-medium text-muted-foreground">{monthLabel}</span>
         </h2>
@@ -47,7 +50,7 @@ export function MoneySplit({ income, expenses, monthLabel }: { income: number; e
       {base > 0 && (
         <div className="mt-4">
           <div
-            className="relative flex h-6 gap-0.5"
+            className="relative flex h-7 gap-0.5"
             role="img"
             aria-label={`Ingresos ${formatAmount(income)}; gastos ${formatAmount(expenses)}; ${
               over ? `exceso ${formatAmount(expenses - income)}` : `ahorro ${formatAmount(savings)}`
@@ -55,13 +58,17 @@ export function MoneySplit({ income, expenses, monthLabel }: { income: number; e
           >
             {expenses > 0 && (
               <div
-                className="h-full rounded-[4px] bg-series-expense"
+                className="fc-grow-x h-full rounded-[6px] bg-series-expense"
                 style={{ width: over ? "100%" : pct(expenses) }}
                 title={`Gastos: ${formatAmount(expenses)}`}
               />
             )}
             {!over && savings > 0 && (
-              <div className="h-full flex-1 rounded-[4px] bg-series-savings" title={`Ahorro: ${formatAmount(savings)}`} />
+              <div
+                className="fc-grow-x h-full flex-1 rounded-[6px] bg-series-savings"
+                style={{ "--i": 4 } as React.CSSProperties}
+                title={`Ahorro: ${formatAmount(savings)}`}
+              />
             )}
             {over && income > 0 && (
               // Hasta dónde llegaban los ingresos; lo de la derecha es lo gastado de más.
