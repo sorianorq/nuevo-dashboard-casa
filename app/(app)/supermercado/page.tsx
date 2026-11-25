@@ -6,7 +6,7 @@ import { MonthSelect } from "@/components/resumen/month-select";
 import { StatCard } from "@/components/resumen/stat-card";
 import { CategoryList, Evolution, StoreList } from "@/components/supermercado/breakdowns";
 import { PurchaseHistory } from "@/components/supermercado/purchase-history";
-import { NewPurchaseButton, PurchaseEditor } from "@/components/supermercado/purchase-editor";
+import { NewPurchaseButton, PurchaseEditor, TicketCameraButton } from "@/components/supermercado/purchase-editor";
 import { getDataContext, getSupermarket, listStores } from "@/lib/data";
 import { formatAmount, formatDate, formatSignedPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -86,6 +86,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/supermercad
           <PurchaseHistory purchases={data.purchases} />
         </div>
       </div>
+      <TicketCameraButton />
     </PurchaseEditor>
   );
 }

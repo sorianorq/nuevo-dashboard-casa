@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Camera, Check, Loader2, Plus, X } from "lucide-react";
+import { AlertTriangle, Camera, Check, Loader2, Plus, Receipt, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -80,7 +80,7 @@ async function compressPhoto(file: File): Promise<Blob> {
   }
 }
 
-type Ctx = { openNew: () => void; openEdit: (p: Purchase) => void };
+type Ctx = { openNew: () => void; openEdit: (p: Purchase) => void; openWithPhoto: (file: File) => void };
 const EditorContext = createContext<Ctx | null>(null);
 
 export function usePurchaseEditor() {
@@ -102,19 +102,54 @@ export function PurchaseEditor({
   me: Person;
   children: React.ReactNode;
 }) {
-  const [state, setState] = useState<{ purchase: Purchase | null; key: number } | null>(null);
+  const [state, setState] = useState<{ purchase: Purchase | null; key: number; photo?: File } | null>(null);
   return (
     <EditorContext.Provider
       value={{
         openNew: () => setState({ purchase: null, key: Date.now() }),
         openEdit: (purchase) => setState({ purchase, key: Date.now() }),
+        openWithPhoto: (photo) => setState({ purchase: null, key: Date.now(), photo }),
       }}
     >
       {children}
       {state && (
-        <PurchaseForm key={state.key} purchase={state.purchase} stores={stores} today={today} me={me} onClose={() => setState(null)} />
+        <PurchaseForm
+          key={state.key}
+          purchase={state.purchase}
+          initialPhoto={state.photo}
+          stores={stores}
+          today={today}
+          me={me}
+          onClose={() => setState(null)}
+        />
       )}
     </EditorContext.Provider>
+  );
+}
+
+/**
+ * Botón flotante del móvil (encima de la barra inferior): abre directamente la
+ * cámara y, con la foto hecha, la compra nueva leyendo el ticket.
+ */
+export function TicketCameraButton() {
+  const { openWithPhoto } = usePurchaseEditor();
+  return (
+    <label className="ticket-fab fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex h-14 cursor-pointer items-center gap-2 rounded-full bg-foreground pr-5 pl-4 text-[15px] font-bold text-background shadow-lg ring-4 ring-background transition-transform active:scale-95 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring lg:hidden">
+      <Receipt className="size-5" aria-hidden />
+      Ticket
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        aria-label="Hacer foto del ticket de la compra"
+        className="sr-only"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) openWithPhoto(f);
+        }}
+      />
+    </label>
   );
 }
 
@@ -129,12 +164,15 @@ export function NewPurchaseButton() {
 
 function PurchaseForm({
   purchase,
+  initialPhoto,
   stores,
   today,
   me,
   onClose,
 }: {
   purchase: Purchase | null;
+  /** Foto hecha con el botón «Ticket»: se lee al abrir. */
+  initialPhoto?: File;
   stores: string[];
   today: string;
   me: Person;
@@ -166,7 +204,7 @@ function PurchaseForm({
         }
       : null,
   );
-  const [reading, setReading] = useState(false);
+  const [reading, setReading] = useState(Boolean(initialPhoto));
   const fileRef = useRef<HTMLInputElement>(null);
   // Foto ya guardada: enlace temporal al abrir la compra.
   const savedPath = purchase?.ticketPath ?? null;
@@ -242,6 +280,14 @@ function PurchaseForm({
       setReading(false);
     }
   };
+  // Foto del botón «Ticket»: leerla nada más abrir (una vez).
+  const started = useRef(false);
+  useEffect(() => {
+    if (!initialPhoto || started.current) return;
+    started.current = true;
+    void readPhoto(initialPhoto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPhoto]);
   const updateRow = (key: number, patch: Partial<TicketRow>) =>
     setTicket((t) => (t ? { ...t, rows: t.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)) } : t));
 

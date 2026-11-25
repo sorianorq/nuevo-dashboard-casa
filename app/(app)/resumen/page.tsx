@@ -5,7 +5,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { MonthNav } from "@/components/resumen/month-nav";
 import { ResumenSkeleton } from "@/components/resumen/resumen-skeleton";
 import { ResumenView } from "@/components/resumen/resumen-view";
-import { getDataContext, getSummary } from "@/lib/data";
+import { TicketCameraButton, PurchaseEditor } from "@/components/supermercado/purchase-editor";
+import { getDataContext, getSummary, listStores } from "@/lib/data";
 import { compareYm, parseYm, todayIso, ymOf } from "@/lib/months";
 
 export const metadata: Metadata = { title: "Resumen" };
@@ -31,13 +32,14 @@ async function ResumenContent({ searchParams }: { searchParams: PageProps<"/resu
   // No se permiten meses futuros.
   const ym = requested && compareYm(requested, currentYm) <= 0 ? requested : currentYm;
 
-  const summary = await getSummary(ctx, ym, today);
+  const [summary, stores] = await Promise.all([getSummary(ctx, ym, today), listStores()]);
 
   const params: Record<string, string> = {};
   if (ctx.tab === "personal") params.balance = "personal";
 
   return (
-    <>
+    // Botón flotante «Ticket» (móvil): foto del ticket y compra nueva desde aquí.
+    <PurchaseEditor stores={stores} today={today} me={ctx.person}>
       <BalanceSwitcher
         role={ctx.role}
         person={ctx.person}
@@ -45,6 +47,7 @@ async function ResumenContent({ searchParams }: { searchParams: PageProps<"/resu
         aside={<MonthNav ym={ym} maxYm={currentYm} pathname="/resumen" params={params} />}
       />
       <ResumenView summary={summary} owner={ctx.owner} />
-    </>
+      <TicketCameraButton />
+    </PurchaseEditor>
   );
 }
