@@ -185,6 +185,14 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    Debajo, plegado, «Fuera del presupuesto» con lo gastado en otros conceptos y «Añadir» en cada uno.
    Se quitó «Rellenar vacíos con la media». Probado (añadir y quitar, 390 y 1440 px, sin errores);
    importes restaurados idénticos.
+   **Inversión y % sobre la nómina (25/11/2026, petición de Ricardo):** dos resúmenes del mes,
+   Gastos («Quedan / Te pasas») e Inversión («Faltan X por invertir / ✓ hecha»); las dos tablas
+   siempre visibles, cada una con su «+ Añadir» (diálogo filtrado al bloque). Columna «% nómina»
+   (en móvil, debajo del importe) y total; en los resúmenes, % del presupuesto y de lo real en total.
+   Base elegida por Ricardo: **nómina real de cada mes** (concepto «Nómina» de Ingresos; en Casa,
+   la de Ricardo si quien mira puede ver su Balance; si el Balance no tiene nómina, total de
+   ingresos). Sin cobro ese mes no hay %. Ojo: la nómina de Ricardo solo está importada hasta
+   marzo 2026. Probado solo lectura (Casa y Ricardo, 390 y 1440 px, sin errores).
 9. **Balances: colocar conceptos arrastrando la fila (25/11/2026, petición de Ricardo).** Asa ⋮⋮ al
    principio de cada fila (ordenador y móvil): se suelta entre dos filas del mismo bloque, sobre un
    subtotal para meterlo en ese grupo (resaltado) o al final del bloque; un subtotal se mueve con su

@@ -20,7 +20,15 @@ export type BudgetData = {
   isCurrentMonth: boolean;
   /** Día del mes en curso (0 si es un mes cerrado). */
   day: number;
+  /**
+   * Base para los %: la nómina real del mes (concepto «Nómina» de Ingresos; en
+   * Casa, la de Ricardo) o, si el Balance no tiene nómina, el total de ingresos.
+   * null = no se puede calcular (p. ej. Andrea viendo Casa).
+   */
+  income: { label: string; amount: number | null } | null;
 };
+
+const isNomina = (name: string) => /n[oó]mina/i.test(name);
 
 const elapsedFor = (year: number, current: YearMonth) =>
   year < current.year ? 12 : year > current.year ? 0 : current.month;
@@ -65,7 +73,30 @@ export async function getBudget(ctx: DataContext, ym: YearMonth, today: string):
     });
   }
 
-  return { lines, isCurrentMonth, day: isCurrentMonth ? Number(today.slice(8, 10)) : 0 };
+  // Nómina del mes.
+  const incomeRows = (rows: BalanceRow[]) =>
+    flat(rows).filter((r) => r.kind !== "subtotal" && r.section === "ingresos");
+  let income: BudgetData["income"] = null;
+  const sumOf = (rows: BalanceRow[]) => {
+    const vals = rows.map((r) => r.real[m]).filter((v): v is number => v !== null);
+    return vals.length ? round2(vals.reduce((a, b) => a + b, 0)) : null;
+  };
+  const own = incomeRows(sheets.get(ym.year)!.blocks.flatMap((b) => b.rows));
+  if (own.some((r) => isNomina(r.name))) {
+    income = { label: "Nómina", amount: sumOf(own.filter((r) => isNomina(r.name))) };
+  } else if (ctx.owner === "casa") {
+    // Casa no cobra nómina: se usa la de Ricardo (si quien mira puede ver su Balance).
+    if (ctx.allowedOwners.includes("ricardo")) {
+      const ric = await getBalance({ ...ctx, owner: "ricardo" }, ym.year, elapsedFor(ym.year, current), { includeArchived: true });
+      const rows = incomeRows(ric.blocks.flatMap((b) => b.rows)).filter((r) => isNomina(r.name));
+      if (rows.length) income = { label: "Nómina de Ricardo", amount: sumOf(rows) };
+    }
+  } else {
+    income = { label: "Ingresos", amount: sumOf(own) };
+  }
+  if (income && (income.amount === null || income.amount <= 0)) income = { ...income, amount: null };
+
+  return { lines, isCurrentMonth, day: isCurrentMonth ? Number(today.slice(8, 10)) : 0, income };
 }
 
 // --- Cambios -------------------------------------------------------------

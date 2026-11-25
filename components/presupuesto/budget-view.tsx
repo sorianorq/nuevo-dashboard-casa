@@ -30,7 +30,7 @@ const toInput = (v: number | null) =>
 export function BudgetView({ tab, monthLabel, data }: Props) {
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const [removed, setRemoved] = useState<Set<string>>(new Set());
-  const [adding, setAdding] = useState<{ conceptId: string | null } | null>(null);
+  const [adding, setAdding] = useState<{ conceptId: string | null; section: "gastos" | "ahorro" | null } | null>(null);
   const [busy, start] = useTransition();
   const editing = draft !== null;
 
@@ -38,13 +38,10 @@ export function BudgetView({ tab, monthLabel, data }: Props) {
   const included = data.lines.filter((l) => l.budget !== null);
   const gastos = included.filter((l) => l.section === "gastos");
   const ahorro = included.filter((l) => l.section === "ahorro");
-  const budgetTotal = round2(gastos.reduce((s, l) => s + (l.budget ?? 0), 0));
-  const spentTotal = round2(gastos.reduce((s, l) => s + l.spent, 0));
   const outside = data.lines.filter((l) => l.budget === null && l.spent > 0);
-  const unbudgeted = round2(outside.filter((l) => l.section === "gastos").reduce((s, l) => s + l.spent, 0));
   const candidates = data.lines.filter((l) => l.budget === null && !l.archived);
-  const ratio = budgetTotal > 0 ? spentTotal / budgetTotal : null;
-  const left = round2(budgetTotal - spentTotal);
+  /** Nómina del mes (base de los %), null si no hay o aún no se ha cobrado. */
+  const base = data.income?.amount ?? null;
 
   const startEdit = () => {
     setRemoved(new Set());
@@ -112,86 +109,172 @@ export function BudgetView({ tab, monthLabel, data }: Props) {
 
   return (
     <div className="space-y-4 lg:space-y-5">
-      <section aria-labelledby="budget-summary" className="rounded-card border bg-card p-4 lg:p-5">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 id="budget-summary" className="text-[13px] text-muted-foreground">
-            Gastos de {monthLabel}
-          </h2>
-          {ratio !== null && (
-            <span className={cn("text-[13px] font-bold", ratio >= WARN_RATIO ? "text-warning" : "text-brand")}>
-              {formatPercent(ratio)}
-            </span>
+      {data.income && (
+        <p className="text-sm text-muted-foreground">
+          {base !== null ? (
+            <>
+              {data.income.label} de {monthLabel}: <strong className="text-foreground tabular-nums">{formatAmount(base)}</strong>
+              <span className="text-xs"> · los % son sobre esta cifra</span>
+            </>
+          ) : (
+            <>
+              {data.income.label}: aún no hay cobro en {monthLabel}. Los % aparecerán cuando llegue.
+            </>
           )}
-        </div>
-        {budgetTotal > 0 ? (
-          <>
-            <p className="mt-1 text-2xl font-extrabold tabular-nums">
-              {formatAmount(spentTotal)}{" "}
-              <span className="text-base font-semibold text-muted-foreground">de {formatAmount(budgetTotal)}</span>
-            </p>
-            {ratio !== null && <Bar ratio={ratio} warn={ratio >= WARN_RATIO} className="mt-2.5 h-2.5" label="Presupuesto de gastos usado" />}
-            <p className={cn("mt-2 text-sm font-bold", left < 0 ? "text-warning" : "text-positive")}>
-              {left >= 0 ? `Quedan ${formatAmount(left)}` : `▲ Te pasas en ${formatAmount(-left)}`}
-              {data.isCurrentMonth && <span className="font-normal text-muted-foreground"> · a día {data.day}</span>}
-            </p>
-          </>
-        ) : (
-          <p className="mt-1 text-sm text-muted-foreground">
-            Aún no hay gastos en el presupuesto. Pulsa «Añadir concepto», elige uno y escribe cuánto quieres gastar al mes;
-            vale para todos los meses.
-          </p>
-        )}
-        {unbudgeted > 0 && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Gastado fuera del presupuesto: <strong className="tabular-nums">{formatAmount(unbudgeted)}</strong>
-          </p>
-        )}
-      </section>
+        </p>
+      )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        {editing ? (
-          <>
-            <Button onClick={save} disabled={busy || invalid.length > 0} className="h-11 rounded-xl px-5">
-              {busy ? "Guardando…" : "Guardar"}
-            </Button>
-            <Button variant="outline" onClick={cancelEdit} disabled={busy} className="h-11 rounded-xl px-4">
-              Cancelar
-            </Button>
-            <p className="w-full text-xs text-muted-foreground">
-              Cambia los importes al mes (iguales para todos los meses) o pulsa × para quitar un concepto del presupuesto. No
-              se guarda nada hasta que pulses «Guardar».
-            </p>
-          </>
-        ) : (
-          <>
-            <Button onClick={() => setAdding({ conceptId: null })} disabled={!candidates.length} className="h-11 rounded-xl px-4">
-              <Plus aria-hidden /> Añadir concepto
-            </Button>
-            {included.length > 0 && (
-              <Button variant="outline" onClick={startEdit} className="h-11 rounded-xl px-4">
-                <Pencil aria-hidden /> Editar o quitar
-              </Button>
-            )}
-          </>
-        )}
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        <Summary kind="gastos" monthLabel={monthLabel} data={data} lines={gastos} outside={outside} base={base} />
+        <Summary kind="ahorro" monthLabel={monthLabel} data={data} lines={ahorro} outside={outside} base={base} />
       </div>
 
-      {(gastos.length > 0 || ahorro.length === 0) && <BudgetTable title="Gastos" kind="gastos" lines={gastos} {...tableProps} />}
-      {ahorro.length > 0 && <BudgetTable title="Inversión" kind="ahorro" lines={ahorro} {...tableProps} />}
+      {(editing || included.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {editing ? (
+            <>
+              <Button onClick={save} disabled={busy || invalid.length > 0} className="h-11 rounded-xl px-5">
+                {busy ? "Guardando…" : "Guardar"}
+              </Button>
+              <Button variant="outline" onClick={cancelEdit} disabled={busy} className="h-11 rounded-xl px-4">
+                Cancelar
+              </Button>
+              <p className="w-full text-xs text-muted-foreground">
+                Cambia los importes al mes (iguales para todos los meses) o pulsa × para quitar un concepto del presupuesto.
+                No se guarda nada hasta que pulses «Guardar».
+              </p>
+            </>
+          ) : (
+            <Button variant="outline" onClick={startEdit} className="h-11 rounded-xl px-4">
+              <Pencil aria-hidden /> Editar o quitar
+            </Button>
+          )}
+        </div>
+      )}
+
+      {(["gastos", "ahorro"] as const).map((kind) => (
+        <BudgetTable
+          key={kind}
+          title={kind === "gastos" ? "Gastos" : "Inversión"}
+          kind={kind}
+          lines={kind === "gastos" ? gastos : ahorro}
+          base={base}
+          canAdd={!editing && candidates.some((c) => c.section === kind)}
+          onAdd={() => setAdding({ conceptId: null, section: kind })}
+          {...tableProps}
+        />
+      ))}
 
       {outside.length > 0 && !editing && (
-        <Outside lines={outside} canAdd={(id) => candidates.some((c) => c.conceptId === id)} onAdd={(id) => setAdding({ conceptId: id })} />
+        <Outside lines={outside} canAdd={(id) => candidates.some((c) => c.conceptId === id)} onAdd={(id) => setAdding({ conceptId: id, section: null })} />
       )}
 
       {adding && (
         <AddDialog
           tab={tab}
-          candidates={candidates}
+          candidates={adding.section ? candidates.filter((c) => c.section === adding.section) : candidates}
+          section={adding.section}
           initialId={adding.conceptId}
+          base={base}
           onClose={() => setAdding(null)}
         />
       )}
     </div>
+  );
+}
+
+const pctOf = (amount: number, base: number | null) => (base && base > 0 ? formatPercent(amount / base) : null);
+
+/** Resumen del mes de un bloque: Gastos (lo que queda) o Inversión (lo que falta por apartar). */
+function Summary({
+  kind,
+  monthLabel,
+  data,
+  lines,
+  outside,
+  base,
+}: {
+  kind: "gastos" | "ahorro";
+  monthLabel: string;
+  data: BudgetData;
+  lines: BudgetLine[];
+  outside: BudgetLine[];
+  base: number | null;
+}) {
+  const isExpense = kind === "gastos";
+  const budgetTotal = round2(lines.reduce((s, l) => s + (l.budget ?? 0), 0));
+  const realTotal = round2(lines.reduce((s, l) => s + l.spent, 0));
+  const extra = round2(outside.filter((l) => l.section === kind).reduce((s, l) => s + l.spent, 0));
+  const ratio = budgetTotal > 0 ? realTotal / budgetTotal : null;
+  const left = round2(budgetTotal - realTotal);
+  const warn = isExpense && ratio !== null && ratio >= WARN_RATIO;
+  const id = `budget-summary-${kind}`;
+  const budgetPct = pctOf(budgetTotal, base);
+  const realPct = pctOf(realTotal + extra, base);
+
+  return (
+    <section aria-labelledby={id} className="rounded-card border bg-card p-4 lg:p-5">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 id={id} className="text-[13px] text-muted-foreground">
+          {isExpense ? "Gastos" : "Inversión"} de {monthLabel}
+        </h2>
+        {ratio !== null && (
+          <span className={cn("text-[13px] font-bold", warn ? "text-warning" : "text-brand")}>{formatPercent(ratio)}</span>
+        )}
+      </div>
+      {budgetTotal > 0 ? (
+        <>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums">
+            {formatAmount(realTotal)}{" "}
+            <span className="text-base font-semibold text-muted-foreground">de {formatAmount(budgetTotal)}</span>
+          </p>
+          {ratio !== null && (
+            <Bar
+              ratio={ratio}
+              warn={warn}
+              className="mt-2.5 h-2.5"
+              label={isExpense ? "Presupuesto de gastos usado" : "Inversión del mes hecha"}
+            />
+          )}
+          {isExpense ? (
+            <p className={cn("mt-2 text-sm font-bold", left < 0 ? "text-warning" : "text-positive")}>
+              {left >= 0 ? `Quedan ${formatAmount(left)}` : `▲ Te pasas en ${formatAmount(-left)}`}
+              {data.isCurrentMonth && <span className="font-normal text-muted-foreground"> · a día {data.day}</span>}
+            </p>
+          ) : (
+            <p className={cn("mt-2 text-sm font-bold", left > 0 ? "text-foreground" : "text-positive")}>
+              {left > 0 ? `Faltan ${formatAmount(left)} por invertir` : "✓ Inversión del mes hecha"}
+              {data.isCurrentMonth && <span className="font-normal text-muted-foreground"> · a día {data.day}</span>}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isExpense
+            ? "Aún no hay gastos en el presupuesto. Pulsa «Añadir» en la tabla de Gastos."
+            : "Aún no hay inversión en el presupuesto. Pulsa «Añadir» en la tabla de Inversión."}
+        </p>
+      )}
+      {(budgetPct || realPct) && (budgetTotal > 0 || realTotal + extra > 0) && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Sobre la nómina:{" "}
+          {budgetTotal > 0 && (
+            <>
+              presupuesto <strong className="text-foreground tabular-nums">{budgetPct}</strong>
+              {" · "}
+            </>
+          )}
+          {isExpense ? "gastado en total" : "invertido en total"}{" "}
+          <strong className="text-foreground tabular-nums">{realPct}</strong>
+        </p>
+      )}
+      {extra > 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {isExpense ? "Gastado" : "Invertido"} fuera del presupuesto:{" "}
+          <strong className="tabular-nums">{formatAmount(extra)}</strong>
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -241,12 +324,16 @@ const lineLabel = (l: BudgetLine) => (l.parentName ? `${l.name} (${l.parentName}
 function AddDialog({
   tab,
   candidates,
+  section,
   initialId,
+  base,
   onClose,
 }: {
   tab: "casa" | "personal";
   candidates: BudgetLine[];
+  section: "gastos" | "ahorro" | null;
   initialId: string | null;
+  base: number | null;
   onClose: () => void;
 }) {
   const [conceptId, setConceptId] = useState(initialId ?? "");
@@ -284,8 +371,12 @@ function AddDialog({
     <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Añadir concepto</DialogTitle>
-          <DialogDescription>Elige el concepto y cuánto quieres gastar al mes. Vale para todos los meses.</DialogDescription>
+          <DialogTitle>{section === "ahorro" ? "Añadir a Inversión" : section === "gastos" ? "Añadir a Gastos" : "Añadir concepto"}</DialogTitle>
+          <DialogDescription>
+            {section === "ahorro"
+              ? "Elige el concepto y cuánto quieres invertir al mes. Vale para todos los meses."
+              : "Elige el concepto y cuánto quieres gastar al mes. Vale para todos los meses."}
+          </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -337,7 +428,8 @@ function AddDialog({
               <p className="text-xs text-muted-foreground">
                 {chosen.average !== null
                   ? `Media de los últimos 6 meses cerrados: ${formatAmount(chosen.average)}`
-                  : "Sin gasto en los últimos 6 meses."}
+                  : "Sin movimientos en los últimos 6 meses."}
+                {valid && base ? ` · ${pctOf(parsed as number, base)} de la nómina` : ""}
               </p>
             )}
           </div>
@@ -377,6 +469,9 @@ function BudgetTable({
   title,
   kind,
   lines,
+  base,
+  canAdd,
+  onAdd,
   draft,
   onDraft,
   invalid,
@@ -386,6 +481,9 @@ function BudgetTable({
   title: string;
   kind: "gastos" | "ahorro";
   lines: BudgetLine[];
+  base: number | null;
+  canAdd: boolean;
+  onAdd: () => void;
   draft: Record<string, string> | null;
   onDraft: (id: string, value: string) => void;
   invalid: Set<string>;
@@ -397,14 +495,30 @@ function BudgetTable({
   const isExpense = kind === "gastos";
   const budgetSum = round2(shown.reduce((s, l) => s + (l.budget ?? 0), 0));
   const spentSum = round2(shown.reduce((s, l) => s + l.spent, 0));
+  const showPct = base !== null;
+  // En edición, el % sigue a lo que se va escribiendo.
+  const amountOf = (l: BudgetLine) => {
+    if (!editing) return l.budget;
+    if (removed.has(l.conceptId)) return null;
+    const v = parseAmount(draft[l.conceptId] ?? "");
+    return v === null || Number.isNaN(v) || v < 0 ? null : v;
+  };
+  const pctSum = round2(shown.reduce((s, l) => s + (amountOf(l) ?? 0), 0));
   const th = "px-2 py-2 text-right text-xs font-bold text-muted-foreground first:pl-4 first:text-left last:pr-4 lg:first:pl-5 lg:last:pr-5";
   const td = "px-2 py-2.5 text-right tabular-nums first:pl-4 first:text-left last:pr-4 lg:first:pl-5 lg:last:pr-5";
 
   return (
     <section aria-labelledby={`budget-${kind}`} className="overflow-hidden rounded-card border bg-card">
-      <h2 id={`budget-${kind}`} className="px-4 pt-4 pb-1 text-base font-bold lg:px-5">
-        {title}
-      </h2>
+      <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-1 lg:px-5">
+        <h2 id={`budget-${kind}`} className="text-base font-bold">
+          {title}
+        </h2>
+        {canAdd && (
+          <Button variant="outline" size="sm" onClick={onAdd} className="h-9 rounded-lg">
+            <Plus aria-hidden /> Añadir
+          </Button>
+        )}
+      </div>
       {shown.length === 0 ? (
         <p className="px-4 pb-4 text-sm text-muted-foreground lg:px-5">Ningún concepto en el presupuesto.</p>
       ) : (
@@ -412,6 +526,7 @@ function BudgetTable({
           <colgroup>
             <col />
             <col className={editing ? "w-28 lg:w-36" : "w-[5.5rem] lg:w-32"} />
+            {showPct && <col className="hidden w-24 sm:table-column lg:w-28" />}
             <col className="w-[5.5rem] lg:w-32" />
             <col className={editing ? "w-12" : "w-[5.5rem] lg:w-32"} />
           </colgroup>
@@ -421,8 +536,20 @@ function BudgetTable({
                 Concepto
               </th>
               <th scope="col" className={th}>
-                Presup./mes
+                {showPct ? (
+                  <>
+                    <span className="sm:hidden">Presup. · %</span>
+                    <span className="hidden sm:inline">Presup./mes</span>
+                  </>
+                ) : (
+                  "Presup./mes"
+                )}
               </th>
+              {showPct && (
+                <th scope="col" className={cn(th, "hidden sm:table-cell")}>
+                  % nómina
+                </th>
+              )}
               <th scope="col" className={th}>
                 {isExpense ? "Gastado" : "Real"}
               </th>
@@ -439,6 +566,8 @@ function BudgetTable({
               const over = isExpense && diff !== null && diff < 0;
               const warn = isExpense && ratio !== null && ratio >= WARN_RATIO;
               const gone = editing && removed.has(l.conceptId);
+              const pct = showPct ? pctOf(amountOf(l) ?? 0, base) : null;
+              const hasAmount = amountOf(l) !== null;
               return (
                 <tr key={l.conceptId} className={cn("border-b last:border-b-0", gone && "bg-muted/50 text-muted-foreground")}>
                   <td className={td}>
@@ -463,9 +592,15 @@ function BudgetTable({
                     ) : budget === null ? (
                       <span className="text-muted-foreground">—</span>
                     ) : (
-                      formatAmount(budget)
+                      <>
+                        {formatAmount(budget)}
+                        {pct && <span className="block text-[11px] whitespace-nowrap text-muted-foreground sm:hidden">{pct}</span>}
+                      </>
                     )}
                   </td>
+                  {showPct && (
+                    <td className={cn(td, "hidden text-muted-foreground sm:table-cell")}>{hasAmount && !gone ? pct : "—"}</td>
+                  )}
                   <td className={cn(td, warn && "font-bold text-warning")}>{formatAmount(l.spent)}</td>
                   {editing ? (
                     <td className={cn(td, "px-1")}>
@@ -481,7 +616,7 @@ function BudgetTable({
                       </Button>
                     </td>
                   ) : (
-                    <td className={cn(td, "font-bold", over ? "text-warning" : "text-foreground")}>
+                    <td className={cn(td, "font-bold whitespace-nowrap", over ? "text-warning" : "text-foreground")}>
                       {diff === null ? (
                         <span className="font-normal text-muted-foreground">sin presup.</span>
                       ) : isExpense ? (
@@ -507,7 +642,13 @@ function BudgetTable({
                 <th scope="row" className={cn(td, "font-bold")}>
                   Total
                 </th>
-                <td className={cn(td, "font-bold")}>{formatAmount(budgetSum)}</td>
+                <td className={cn(td, "font-bold")}>
+                  {formatAmount(budgetSum)}
+                  {showPct && (
+                    <span className="block text-[11px] font-normal whitespace-nowrap text-muted-foreground sm:hidden">{pctOf(pctSum, base)}</span>
+                  )}
+                </td>
+                {showPct && <td className={cn(td, "hidden font-bold sm:table-cell")}>{pctOf(pctSum, base)}</td>}
                 <td className={cn(td, "font-bold")}>{formatAmount(spentSum)}</td>
                 <td className={td} />
               </tr>
