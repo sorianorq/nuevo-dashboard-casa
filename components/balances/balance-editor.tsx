@@ -314,7 +314,7 @@ function ConceptDialog({
   const [name, setName] = useState(editing?.name ?? "");
   const [section, setSection] = useState<ConceptSection>(state.mode === "new" ? state.section : state.row.section);
   const [parentId, setParentId] = useState("");
-  const [kind, setKind] = useState<"manual" | "linked">("linked");
+  const [kind, setKind] = useState<"manual" | "linked" | "subtotal">("linked");
   const [source, setSource] = useState<LinkSource>("movimientos");
   const [periodicity, setPeriodicity] = useState(editing?.periodicity ?? "");
   const [fill, setFill] = useState("");
@@ -333,13 +333,13 @@ function ConceptDialog({
             section,
             kind,
             linkSource: kind === "linked" ? source : null,
-            parentId: parentId || null,
+            parentId: kind === "subtotal" ? null : parentId || null,
             periodicity: periodicity || null,
             fillAmount: kind === "manual" ? fillAmount : null,
             fillYear: year,
           });
       if (!res.ok) return void toast.error(res.error);
-      toast.success(editing ? "Concepto actualizado" : "Concepto creado");
+      toast.success(editing ? "Concepto actualizado" : kind === "subtotal" ? "Grupo creado" : "Concepto creado");
       onClose();
     });
 
@@ -391,7 +391,7 @@ function ConceptDialog({
                     className={selectClass}
                     value={parentId}
                     onChange={(e) => setParentId(e.target.value)}
-                    disabled={sectionGroups.length === 0}
+                    disabled={sectionGroups.length === 0 || kind === "subtotal"}
                   >
                     <option value="">Ninguno</option>
                     {sectionGroups.map((g) => (
@@ -405,7 +405,7 @@ function ConceptDialog({
               <fieldset>
                 <legend className="mb-1.5 text-xs font-bold text-muted-foreground">Tipo</legend>
                 <div className="flex gap-1 rounded-2xl bg-track p-1">
-                  {(["linked", "manual"] as const).map((k) => (
+                  {(["linked", "manual", "subtotal"] as const).map((k) => (
                     <button
                       key={k}
                       type="button"
@@ -416,12 +416,17 @@ function ConceptDialog({
                         kind === k ? "bg-surface font-bold shadow-sm" : "font-semibold text-muted-foreground",
                       )}
                     >
-                      {k === "linked" ? "Automático" : "Manual"}
+                      {k === "linked" ? "Automático" : k === "manual" ? "Manual" : "Grupo"}
                     </button>
                   ))}
                 </div>
               </fieldset>
-              {kind === "linked" ? (
+              {kind === "subtotal" ? (
+                <p className="text-xs text-muted-foreground">
+                  Un grupo (apartado) suma los conceptos que metas dentro: elígelo en «Dentro de» al crear un concepto, o
+                  arrastra conceptos encima de su fila.
+                </p>
+              ) : kind === "linked" ? (
                 <Field label="Sale de" htmlFor="concept-source">
                   <select
                     id="concept-source"

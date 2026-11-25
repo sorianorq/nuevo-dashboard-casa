@@ -77,5 +77,5 @@ export {
   type QuickAddData,
 } from "./pagos";
 export { savePayment, deletePayment, markTransferred, createPaymentMethod, type PaymentInput } from "./pagos-edit";
-export { getBudget, setBudgets, type BudgetData } from "./budget";
+export { getBudget, setBudgets, createBudgetConcept, type BudgetData, type NewBudgetConcept } from "./budget";
 export { getFlow, saveFlow, type FlowData } from "./flow";

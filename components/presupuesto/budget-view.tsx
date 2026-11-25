@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { formatAmount, formatPercent } from "@/lib/format";
 import { round2, WARN_RATIO, type BudgetLine } from "@/lib/calc/budget";
 import type { BudgetData } from "@/lib/data/budget";
-import { saveBudgets } from "@/app/(app)/contabilidad/presupuesto/actions";
+import { createConceptInBudget, saveBudgets } from "@/app/(app)/contabilidad/presupuesto/actions";
 
 type Props = {
   tab: "casa" | "personal";
@@ -159,7 +159,7 @@ export function BudgetView({ tab, monthLabel, data }: Props) {
           kind={kind}
           lines={kind === "gastos" ? gastos : ahorro}
           base={base}
-          canAdd={!editing && candidates.some((c) => c.section === kind)}
+          canAdd={!editing}
           onAdd={() => setAdding({ conceptId: null, section: kind })}
           {...tableProps}
         />
@@ -173,6 +173,7 @@ export function BudgetView({ tab, monthLabel, data }: Props) {
         <AddDialog
           tab={tab}
           candidates={adding.section ? candidates.filter((c) => c.section === adding.section) : candidates}
+          groups={data.groups}
           section={adding.section}
           initialId={adding.conceptId}
           base={base}
@@ -320,10 +321,18 @@ function Outside({ lines, canAdd, onAdd }: { lines: BudgetLine[]; canAdd: (id: s
 
 const lineLabel = (l: BudgetLine) => (l.parentName ? `${l.name} (${l.parentName})` : l.name);
 
-/** Elegir un concepto que no está en el presupuesto y ponerle importe al mes. */
+const fieldClass =
+  "h-11 w-full min-w-0 rounded-xl border bg-surface px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive";
+const NEW_GROUP = "__new__";
+
+/**
+ * Añadir al presupuesto: un concepto que ya existe en Balances o uno nuevo
+ * (con su grupo, existente o nuevo), con su importe al mes.
+ */
 function AddDialog({
   tab,
   candidates,
+  groups,
   section,
   initialId,
   base,
@@ -331,23 +340,38 @@ function AddDialog({
 }: {
   tab: "casa" | "personal";
   candidates: BudgetLine[];
+  groups: BudgetData["groups"];
   section: "gastos" | "ahorro" | null;
   initialId: string | null;
   base: number | null;
   onClose: () => void;
 }) {
+  const [mode, setMode] = useState<"existing" | "new">(candidates.length || initialId ? "existing" : "new");
   const [conceptId, setConceptId] = useState(initialId ?? "");
   const first = candidates.find((c) => c.conceptId === initialId);
   const [amount, setAmount] = useState(first?.average != null ? toInput(first.average) : "");
   const [touched, setTouched] = useState(false);
+  // Concepto nuevo.
+  const [name, setName] = useState("");
+  const [newSection, setNewSection] = useState<"gastos" | "ahorro">(section ?? "gastos");
+  const [group, setGroup] = useState("");
+  const [groupName, setGroupName] = useState("");
+  const [kind, setKind] = useState<"linked" | "manual">("linked");
   const [busy, start] = useTransition();
+
   const chosen = candidates.find((c) => c.conceptId === conceptId) ?? null;
   const parsed = amount.trim() === "" ? null : parseAmount(amount);
-  const valid = chosen !== null && parsed !== null && !Number.isNaN(parsed) && parsed >= 0;
-  const groups = [
+  const amountOk = parsed !== null && !Number.isNaN(parsed) && parsed >= 0;
+  const valid =
+    mode === "existing"
+      ? chosen !== null && amountOk
+      : name.trim() !== "" && amountOk && (group !== NEW_GROUP || groupName.trim() !== "");
+  const listGroups = [
     { label: "Gastos", items: candidates.filter((c) => c.section === "gastos") },
     { label: "Inversión", items: candidates.filter((c) => c.section === "ahorro") },
   ].filter((g) => g.items.length);
+  const sectionGroups = groups.filter((g) => g.section === newSection);
+  const isInv = (mode === "new" ? newSection : (chosen?.section ?? section)) === "ahorro";
 
   const choose = (id: string) => {
     setConceptId(id);
@@ -358,11 +382,28 @@ function AddDialog({
 
   const submit = () =>
     start(async () => {
-      if (!valid || !chosen) return;
-      const res = await saveBudgets(tab, [{ conceptId: chosen.conceptId, amount: round2(parsed as number) }]);
+      if (!valid) return;
+      const value = round2(parsed as number);
+      if (mode === "existing" && chosen) {
+        const res = await saveBudgets(tab, [{ conceptId: chosen.conceptId, amount: value }]);
+        if (!res.ok) return void toast.error(res.error);
+        start(() => {
+          toast.success(`${chosen.name} añadido al presupuesto`);
+          onClose();
+        });
+        return;
+      }
+      const res = await createConceptInBudget(tab, {
+        name: name.trim(),
+        section: newSection,
+        parentId: group && group !== NEW_GROUP ? group : null,
+        newGroup: group === NEW_GROUP ? groupName.trim() : null,
+        kind,
+        amount: value,
+      });
       if (!res.ok) return void toast.error(res.error);
       start(() => {
-        toast.success(`${chosen.name} añadido al presupuesto`);
+        toast.success(`${name.trim()} creado y añadido al presupuesto`);
         onClose();
       });
     });
@@ -373,11 +414,28 @@ function AddDialog({
         <DialogHeader>
           <DialogTitle>{section === "ahorro" ? "Añadir a Inversión" : section === "gastos" ? "Añadir a Gastos" : "Añadir concepto"}</DialogTitle>
           <DialogDescription>
-            {section === "ahorro"
-              ? "Elige el concepto y cuánto quieres invertir al mes. Vale para todos los meses."
-              : "Elige el concepto y cuánto quieres gastar al mes. Vale para todos los meses."}
+            {isInv ? "Cuánto quieres invertir al mes." : "Cuánto quieres gastar al mes."} Vale para todos los meses.
           </DialogDescription>
         </DialogHeader>
+        {!initialId && (
+          <div className="flex gap-1 rounded-2xl bg-track p-1" role="group" aria-label="Qué concepto">
+            {(["existing", "new"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={mode === m}
+                onClick={() => setMode(m)}
+                disabled={m === "existing" && !candidates.length}
+                className={cn(
+                  "min-h-11 flex-1 rounded-xl text-sm disabled:opacity-40",
+                  mode === m ? "bg-surface font-bold shadow-sm" : "font-semibold text-muted-foreground",
+                )}
+              >
+                {m === "existing" ? "Uno que ya existe" : "Uno nuevo"}
+              </button>
+            ))}
+          </div>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -385,30 +443,121 @@ function AddDialog({
           }}
           className="space-y-3"
         >
-          <div className="space-y-1.5">
-            <label htmlFor="budget-concept" className="text-xs font-bold text-muted-foreground">
-              Concepto
-            </label>
-            <select
-              id="budget-concept"
-              value={conceptId}
-              onChange={(e) => choose(e.target.value)}
-              className="h-11 w-full min-w-0 rounded-xl border bg-surface px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="" disabled>
-                Elige un concepto…
-              </option>
-              {groups.map((g) => (
-                <optgroup key={g.label} label={g.label}>
-                  {g.items.map((c) => (
-                    <option key={c.conceptId} value={c.conceptId}>
-                      {lineLabel(c)}
-                    </option>
+          {mode === "existing" ? (
+            <div className="space-y-1.5">
+              <label htmlFor="budget-concept" className="text-xs font-bold text-muted-foreground">
+                Concepto
+              </label>
+              <select id="budget-concept" value={conceptId} onChange={(e) => choose(e.target.value)} className={fieldClass}>
+                <option value="" disabled>
+                  Elige un concepto…
+                </option>
+                {listGroups.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.items.map((c) => (
+                      <option key={c.conceptId} value={c.conceptId}>
+                        {lineLabel(c)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <label htmlFor="budget-new-name" className="text-xs font-bold text-muted-foreground">
+                  Nombre del concepto
+                </label>
+                <input
+                  id="budget-new-name"
+                  value={name}
+                  maxLength={80}
+                  autoComplete="off"
+                  placeholder={newSection === "ahorro" ? "Ej.: Fondo indexado" : "Ej.: Gimnasio"}
+                  onChange={(e) => setName(e.target.value)}
+                  className={fieldClass}
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {!section && (
+                  <div className="space-y-1.5">
+                    <label htmlFor="budget-new-section" className="text-xs font-bold text-muted-foreground">
+                      Bloque
+                    </label>
+                    <select
+                      id="budget-new-section"
+                      value={newSection}
+                      onChange={(e) => {
+                        setNewSection(e.target.value as "gastos" | "ahorro");
+                        setGroup("");
+                      }}
+                      className={fieldClass}
+                    >
+                      <option value="gastos">Gastos</option>
+                      <option value="ahorro">Inversión</option>
+                    </select>
+                  </div>
+                )}
+                <div className={cn("space-y-1.5", section && "sm:col-span-2")}>
+                  <label htmlFor="budget-new-group" className="text-xs font-bold text-muted-foreground">
+                    Apartado
+                  </label>
+                  <select id="budget-new-group" value={group} onChange={(e) => setGroup(e.target.value)} className={fieldClass}>
+                    <option value="">Ninguno (suelto)</option>
+                    {sectionGroups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                    <option value={NEW_GROUP}>+ Apartado nuevo…</option>
+                  </select>
+                </div>
+              </div>
+              {group === NEW_GROUP && (
+                <div className="space-y-1.5">
+                  <label htmlFor="budget-new-group-name" className="text-xs font-bold text-muted-foreground">
+                    Nombre del apartado nuevo
+                  </label>
+                  <input
+                    id="budget-new-group-name"
+                    value={groupName}
+                    maxLength={80}
+                    autoComplete="off"
+                    placeholder="Ej.: Deporte"
+                    onChange={(e) => setGroupName(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+              )}
+              <fieldset>
+                <legend className="mb-1.5 text-xs font-bold text-muted-foreground">
+                  {newSection === "ahorro" ? "Lo invertido" : "Lo gastado"}
+                </legend>
+                <div className="flex gap-1 rounded-2xl bg-track p-1">
+                  {(["linked", "manual"] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      aria-pressed={kind === k}
+                      onClick={() => setKind(k)}
+                      className={cn(
+                        "min-h-11 flex-1 rounded-xl px-2 text-sm",
+                        kind === k ? "bg-surface font-bold shadow-sm" : "font-semibold text-muted-foreground",
+                      )}
+                    >
+                      {k === "linked" ? "Sale del banco" : "Lo escribo a mano"}
+                    </button>
                   ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {kind === "linked"
+                    ? "Suma los movimientos y gastos apuntados que lleven este concepto."
+                    : "Lo escribes cada mes en Balances."}
+                </p>
+              </fieldset>
+            </>
+          )}
           <div className="space-y-1.5">
             <label htmlFor="budget-amount" className="text-xs font-bold text-muted-foreground">
               Importe al mes (€)
@@ -421,15 +570,17 @@ function AddDialog({
                 setTouched(true);
                 setAmount(e.target.value);
               }}
-              aria-invalid={amount.trim() !== "" && !valid}
-              className="h-11 w-full rounded-xl border bg-surface px-3 text-right text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive"
+              aria-invalid={amount.trim() !== "" && !amountOk}
+              className={cn(fieldClass, "text-right tabular-nums")}
             />
-            {chosen && (
+            {(chosen || (mode === "new" && amountOk && base)) && (
               <p className="text-xs text-muted-foreground">
-                {chosen.average !== null
-                  ? `Media de los últimos 6 meses cerrados: ${formatAmount(chosen.average)}`
-                  : "Sin movimientos en los últimos 6 meses."}
-                {valid && base ? ` · ${pctOf(parsed as number, base)} de la nómina` : ""}
+                {mode === "existing" && chosen
+                  ? chosen.average !== null
+                    ? `Media de los últimos 6 meses cerrados: ${formatAmount(chosen.average)}`
+                    : "Sin movimientos en los últimos 6 meses."
+                  : ""}
+                {amountOk && base ? `${mode === "existing" ? " · " : ""}${pctOf(parsed as number, base)} de la nómina` : ""}
               </p>
             )}
           </div>
@@ -438,7 +589,7 @@ function AddDialog({
               Cancelar
             </Button>
             <Button type="submit" disabled={!valid || busy} className="h-11">
-              {busy ? "Guardando…" : "Añadir"}
+              {busy ? "Guardando…" : mode === "new" ? "Crear y añadir" : "Añadir"}
             </Button>
           </DialogFooter>
         </form>

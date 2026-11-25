@@ -193,6 +193,14 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    la de Ricardo si quien mira puede ver su Balance; si el Balance no tiene nómina, total de
    ingresos). Sin cobro ese mes no hay %. Ojo: la nómina de Ricardo solo está importada hasta
    marzo 2026. Probado solo lectura (Casa y Ricardo, 390 y 1440 px, sin errores).
+   **Conceptos y apartados nuevos desde Presupuesto (25/11/2026, petición de Ricardo):** el «+ Añadir»
+   de cada tabla ofrece «Uno que ya existe» o «Uno nuevo»: nombre, apartado (grupo existente del
+   bloque, ninguno o «+ Apartado nuevo…» que se crea como subtotal), «Sale del banco» (enlazado a
+   movimientos) o «Lo escribo a mano» (manual) e importe al mes (`createBudgetConcept`). Son
+   conceptos reales: salen en Balances. En Balances, «+ Concepto» tiene ahora el tipo «Grupo»
+   (`createBalanceConcept` admite `kind: "subtotal"`, sin padre). Probado (crear concepto con
+   apartado nuevo, en apartado existente, nombre repetido rechazado, grupo desde Balances; sin
+   errores); las 4 filas de prueba «ZZ …» se borraron.
 9. **Balances: colocar conceptos arrastrando la fila (25/11/2026, petición de Ricardo).** Asa ⋮⋮ al
    principio de cada fila (ordenador y móvil): se suelta entre dos filas del mismo bloque, sobre un
    subtotal para meterlo en ese grupo (resaltado) o al final del bloque; un subtotal se mueve con su

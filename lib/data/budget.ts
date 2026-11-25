@@ -6,6 +6,7 @@ import { addMonths, compareYm, ymOf, type YearMonth } from "@/lib/months";
 import { getBalance } from "./balance";
 import { assertOwner, type DataContext } from "./session";
 import { fetchAll } from "./query";
+import { createBalanceConcept } from "./balance-edit";
 
 /**
  * Presupuesto del Balance activo: un importe fijo al mes por concepto
@@ -26,6 +27,8 @@ export type BudgetData = {
    * null = no se puede calcular (p. ej. Andrea viendo Casa).
    */
   income: { label: string; amount: number | null } | null;
+  /** Grupos (subtotales) de Gastos e Inversión, para crear conceptos dentro. */
+  groups: { id: string; name: string; section: "gastos" | "ahorro" }[];
 };
 
 const isNomina = (name: string) => /n[oó]mina/i.test(name);
@@ -96,10 +99,70 @@ export async function getBudget(ctx: DataContext, ym: YearMonth, today: string):
   }
   if (income && (income.amount === null || income.amount <= 0)) income = { ...income, amount: null };
 
-  return { lines, isCurrentMonth, day: isCurrentMonth ? Number(today.slice(8, 10)) : 0, income };
+  const groups = sheets
+    .get(ym.year)!
+    .blocks.filter((b) => b.section === "gastos" || b.section === "ahorro")
+    .flatMap((b) =>
+      b.rows
+        .filter((r) => r.kind === "subtotal" && !r.archived)
+        .map((r) => ({ id: r.id, name: r.name, section: b.section as "gastos" | "ahorro" })),
+    );
+
+  return { lines, isCurrentMonth, day: isCurrentMonth ? Number(today.slice(8, 10)) : 0, income, groups };
 }
 
 // --- Cambios -------------------------------------------------------------
+
+export type NewBudgetConcept = {
+  name: string;
+  section: "gastos" | "ahorro";
+  /** Grupo existente donde meterlo (null = suelto o grupo nuevo). */
+  parentId: string | null;
+  /** Nombre de un grupo nuevo que se crea para él. */
+  newGroup: string | null;
+  /** linked = lo gastado sale de los movimientos y gastos apuntados; manual = se escribe en Balances. */
+  kind: "linked" | "manual";
+  amount: number;
+};
+
+/**
+ * Crear desde Presupuesto un concepto nuevo (y, si hace falta, su grupo) con
+ * su importe al mes. Son conceptos de verdad: salen también en Balances.
+ */
+export async function createBudgetConcept(ctx: DataContext, input: NewBudgetConcept, year: number): Promise<{ id: string; groupId: string | null }> {
+  assertOwner(ctx, ctx.owner);
+  if (!Number.isFinite(input.amount) || input.amount < 0 || input.amount >= 1e7) throw new Error("Importe no válido.");
+  if (input.parentId && input.newGroup) throw new Error("Elige un grupo o crea uno nuevo, no los dos.");
+  let parentId = input.parentId;
+  let groupId: string | null = null;
+  if (input.newGroup) {
+    const g = await createBalanceConcept(ctx, {
+      name: input.newGroup,
+      section: input.section,
+      kind: "subtotal",
+      linkSource: null,
+      parentId: null,
+      periodicity: null,
+      fillAmount: null,
+      fillYear: year,
+    });
+    parentId = groupId = g.id;
+  }
+  const c = await createBalanceConcept(ctx, {
+    name: input.name,
+    section: input.section,
+    kind: input.kind,
+    linkSource: input.kind === "linked" ? "movimientos" : null,
+    parentId,
+    periodicity: null,
+    fillAmount: null,
+    fillYear: year,
+  }).catch((e) => {
+    throw new Error(`${e instanceof Error ? e.message : "No se pudo crear el concepto."}${groupId ? " (El grupo sí se creó.)" : ""}`);
+  });
+  await setBudgets(ctx, [{ conceptId: c.id, amount: round2(input.amount) }]);
+  return { id: c.id, groupId };
+}
 
 const dbError = (e: { message: string }) => new Error(`Error de base de datos: ${e.message}`);
 

@@ -160,7 +160,8 @@ async function nameTaken(ctx: DataContext, name: string, exceptId?: string) {
 export type NewConceptInput = {
   name: string;
   section: ConceptSection;
-  kind: "manual" | "linked";
+  /** subtotal = grupo («apartado») que suma los conceptos que tiene dentro. */
+  kind: "manual" | "linked" | "subtotal";
   linkSource: LinkSource | null;
   parentId: string | null;
   /** Texto libre (p. ej. «Día 5 c/mes»); "" = vacío. */
@@ -176,6 +177,7 @@ export async function createBalanceConcept(ctx: DataContext, input: NewConceptIn
   const name = cleanName(input.name);
   if (!SECTION_ORDER.includes(input.section)) throw new Error("Bloque no válido.");
   if (input.kind === "linked" && !input.linkSource) throw new Error("Elige de dónde sale el importe automático.");
+  if (input.kind === "subtotal" && input.parentId) throw new Error("Un grupo no puede ir dentro de otro.");
   if (await nameTaken(ctx, name)) throw new Error("Ya hay un concepto con ese nombre en este Balance (puede estar archivado).");
 
   const supabase = await createClient();

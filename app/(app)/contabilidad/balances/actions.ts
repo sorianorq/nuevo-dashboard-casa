@@ -84,7 +84,7 @@ export async function addConcept(
   input: {
     name: string;
     section: ConceptSection;
-    kind: "manual" | "linked";
+    kind: "manual" | "linked" | "subtotal";
     linkSource: LinkSource | null;
     parentId: string | null;
     periodicity: string | null;
@@ -98,7 +98,7 @@ export async function addConcept(
       !input ||
       typeof input.name !== "string" ||
       !SECTION_ORDER.includes(input.section) ||
-      (input.kind !== "manual" && input.kind !== "linked") ||
+      (input.kind !== "manual" && input.kind !== "linked" && input.kind !== "subtotal") ||
       !sources.includes(input.linkSource) ||
       (input.parentId !== null && !isId(input.parentId)) ||
       !isPeriodicity(input.periodicity) ||
