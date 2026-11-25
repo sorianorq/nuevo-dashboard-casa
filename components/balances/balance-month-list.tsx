@@ -7,6 +7,7 @@ import type { BalanceRow, BalanceSheet } from "@/lib/calc/balance";
 import { SECTION_LABEL, type ConceptSection } from "@/lib/labels";
 import { cellNote, deviationTone, valuesFor, type BalanceView } from "./shared";
 import { AddConceptButton, ConceptMenu, DeleteConceptButton, HideRowButton, ManualCellInput, useBalanceEditor, useDisplaySheet } from "./balance-editor";
+import { DragHandle, dropClasses, endClasses, rowDragAttrs, useRowDrag } from "./row-drag";
 
 const TOTAL_LABEL: Record<ConceptSection, string> = {
   ingresos: "Total ingresos",
@@ -61,7 +62,8 @@ export function BalanceMonthList({
     );
   };
 
-  const row = (r: BalanceRow, section: ConceptSection) => {
+  const drag = useRowDrag();
+  const row = (r: BalanceRow, section: ConceptSection, groupId: string | null = null) => {
     const editable = view === "real" && r.kind !== "subtotal" && !manual;
     const comment = comments[r.id]?.[i];
     const content = (
@@ -92,8 +94,10 @@ export function BalanceMonthList({
     return (
       <li
         key={r.id}
-        className={cn("flex items-center gap-1 border-b", (r.archived || hidden.has(r.id)) && "text-muted-foreground")}
+        {...rowDragAttrs(r, section, groupId)}
+        className={cn("flex items-center gap-1 border-b", (r.archived || hidden.has(r.id)) && "text-muted-foreground", dropClasses(drag, r.id))}
       >
+        <DragHandle row={r} section={section} drag={drag} className="-ml-2 h-11 w-7" />
         <DeleteConceptButton row={r} className="size-9" />
         <HideRowButton row={r} className="size-9" />
         {editable ? (
@@ -116,7 +120,7 @@ export function BalanceMonthList({
   const result = valuesFor(sheet.result, view)[i];
 
   return (
-    <section className="rounded-card border bg-card px-4 pb-2" aria-label={`Balance del mes, vista ${view}`}>
+    <section data-drag-scope className="rounded-card border bg-card px-4 pb-2" aria-label={`Balance del mes, vista ${view}`}>
       {sheet.blocks.map((block) => (
         <div key={block.section}>
           <h2 className="pt-4 pb-1.5 text-xs font-extrabold tracking-[0.1em] text-brand uppercase">
@@ -128,8 +132,8 @@ export function BalanceMonthList({
             )}
             {block.rows
               .filter(visible)
-              .flatMap((r) => [row(r, block.section), ...r.children.filter(visible).map((c) => row(c, block.section))])}
-            <li className="border-b">
+              .flatMap((r) => [row(r, block.section), ...r.children.filter(visible).map((c) => row(c, block.section, r.id))])}
+            <li className={cn("border-b", endClasses(drag, block.section))}>
               <AddConceptButton section={block.section} />
             </li>
             <li className="-mx-4 flex min-h-11 items-center gap-2 border-b bg-background px-4 py-2 font-extrabold">

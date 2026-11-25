@@ -310,6 +310,64 @@ export async function moveBalanceConcept(ctx: DataContext, conceptId: string, di
   }
 }
 
+/**
+ * Colocar un concepto arrastrándolo: queda delante de `beforeId` (o al final)
+ * dentro de `parentId` (un subtotal del mismo bloque, o null = primer nivel).
+ * Un subtotal solo se mueve en primer nivel. Se renumeran los hermanos de 10
+ * en 10, archivados incluidos (conservan su sitio relativo).
+ */
+export async function reorderBalanceConcept(
+  ctx: DataContext,
+  conceptId: string,
+  target: { parentId: string | null; beforeId: string | null },
+) {
+  const c = await loadConcept(ctx, conceptId);
+  if (target.beforeId === conceptId || target.parentId === conceptId) return;
+  if (target.parentId) {
+    const parent = await loadConcept(ctx, target.parentId);
+    if (parent.kind !== "subtotal" || parent.section !== c.section) throw new Error("Ese grupo no es de este bloque.");
+    if (c.kind === "subtotal") throw new Error("Un subtotal no puede ir dentro de otro.");
+  }
+  const supabase = await createClient();
+  const rows = await fetchAll((a, b) =>
+    supabase
+      .from("andrea_concepts")
+      .select("id, concept, sort_order, parent_id")
+      .eq("owner", ctx.owner)
+      .eq("section", c.section)
+      .order("id")
+      .range(a, b),
+  );
+  const parentOf = (r: { parent_id: unknown }) => (r.parent_id ? String(r.parent_id) : null);
+  const siblings = rows
+    .filter((r) => parentOf(r) === target.parentId && String(r.id) !== c.id)
+    .sort((x, y) => (Number(x.sort_order) || 0) - (Number(y.sort_order) || 0) || String(x.concept).localeCompare(String(y.concept), "es"));
+  let index = siblings.length;
+  if (target.beforeId) {
+    index = siblings.findIndex((s) => String(s.id) === target.beforeId);
+    if (index < 0) throw new Error("No se encuentra dónde colocarlo; recarga la página.");
+  }
+  const me = rows.find((r) => String(r.id) === c.id)!;
+  const ordered = [...siblings.slice(0, index), me, ...siblings.slice(index)];
+  const start = Math.max(0, Math.min(...ordered.map((s) => Number(s.sort_order) || 0)));
+  const updates = ordered
+    .map((s, i) => ({
+      id: String(s.id),
+      sort_order: start + i * 10,
+      prev: Number(s.sort_order),
+      parentChanged: String(s.id) === c.id && c.parent_id !== target.parentId,
+    }))
+    .filter((u) => u.sort_order !== u.prev || u.parentChanged);
+  for (const u of updates) {
+    const { error } = await supabase
+      .from("andrea_concepts")
+      .update(u.parentChanged ? { sort_order: u.sort_order, parent_id: target.parentId } : { sort_order: u.sort_order })
+      .eq("id", u.id)
+      .eq("owner", ctx.owner);
+    if (error) throw dbError(error);
+  }
+}
+
 /** Archivar (o recuperar): no se borra; el histórico sigue en los años con datos. */
 export async function setConceptArchived(ctx: DataContext, conceptId: string, archived: boolean) {
   const c = await loadConcept(ctx, conceptId);

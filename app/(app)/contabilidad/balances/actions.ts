@@ -7,6 +7,7 @@ import {
   getDataContext,
   previewDeleteConcept,
   moveBalanceConcept,
+  reorderBalanceConcept,
   setCellComment,
   setConceptArchived,
   setBudgets,
@@ -130,6 +131,22 @@ export async function moveConcept(tab: string, conceptId: string, direction: "up
     if (!isId(conceptId) || (direction !== "up" && direction !== "down")) throw new Error("Datos no válidos.");
     const ctx = await ctxFor(tab);
     await moveBalanceConcept(ctx, conceptId, direction);
+    refresh();
+    return {};
+  });
+}
+
+/** Colocar un concepto arrastrando su fila (delante de otro, o al final de un grupo/bloque). */
+export async function reorderConcept(
+  tab: string,
+  conceptId: string,
+  target: { parentId: string | null; beforeId: string | null },
+) {
+  return run(async () => {
+    const okRef = (v: unknown) => v === null || isId(v);
+    if (!isId(conceptId) || !target || !okRef(target.parentId) || !okRef(target.beforeId)) throw new Error("Datos no válidos.");
+    const ctx = await ctxFor(tab);
+    await reorderBalanceConcept(ctx, conceptId, { parentId: target.parentId, beforeId: target.beforeId });
     refresh();
     return {};
   });

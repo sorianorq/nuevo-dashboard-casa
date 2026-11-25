@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatAmount, formatMonth } from "@/lib/format";
-import { applyCellEdits, type BalanceRow, type BalanceSheet, type LinkSource } from "@/lib/calc/balance";
+import { applyCellEdits, applyRowMove, type BalanceRow, type RowMove, type BalanceSheet, type LinkSource } from "@/lib/calc/balance";
 import {
   LINK_SOURCE_LABEL,
   PERIODICITIES,
@@ -40,6 +40,7 @@ import {
   editConcept,
   hideConcept,
   moveConcept,
+  reorderConcept,
   previewDelete,
   saveBudgetCell,
   saveCell,
@@ -65,6 +66,10 @@ type EditorState = {
   edits: CellEdit[];
   /** Guarda lo escrito en una celda (y lo muestra ya, con los totales recalculados). */
   saveManualCell: (row: BalanceRow, monthIndex: number, field: "real" | "budget", value: number | null) => void;
+  /** Fila que se acaba de soltar en otro sitio (se ve ya movida mientras se guarda). */
+  move: RowMove | null;
+  /** Coloca un concepto arrastrando su fila. */
+  reorder: (row: BalanceRow, target: { parentId: string | null; beforeId: string | null }) => void;
 };
 
 type CellEdit = { rowId: string; month: number; field: "real" | "budget"; value: number | null };
@@ -116,6 +121,19 @@ export function BalanceEditor({
   const [concept, setConcept] = useState<{ mode: "new"; section: ConceptSection } | { mode: "edit"; row: BalanceRow } | null>(null);
   const [manual, setManual] = useState(false);
   const [edits, setEdits] = useState<CellEdit[]>([]);
+  const [move, setMove] = useState<RowMove | null>(null);
+  const [, startMove] = useTransition();
+
+  const reorder: EditorState["reorder"] = (row, target) => {
+    const next: RowMove = { rowId: row.id, ...target };
+    setMove(next);
+    startMove(async () => {
+      const res = await reorderConcept(tab, row.id, target);
+      if (!res.ok) toast.error(`${row.name}: ${res.error}`);
+      // Llega la hoja guardada (refresh): se quita la recolocación local.
+      startMove(() => setMove((m) => (m === next ? null : m)));
+    });
+  };
 
   const saveManualCell: EditorState["saveManualCell"] = (row, monthIndex, field, value) => {
     const edit: CellEdit = { rowId: row.id, month: monthIndex, field, value };
@@ -146,6 +164,8 @@ export function BalanceEditor({
     setManual,
     edits,
     saveManualCell,
+    move,
+    reorder,
   };
 
   return (
@@ -629,8 +649,8 @@ export function DeleteConceptButton({ row, className }: { row: BalanceRow; class
 
 /** Hoja con lo que se acaba de escribir en modo manual (totales recalculados al momento). */
 export function useDisplaySheet(sheet: BalanceSheet): BalanceSheet {
-  const { edits } = useBalanceEditor();
-  return useMemo(() => applyCellEdits(sheet, edits), [sheet, edits]);
+  const { edits, move } = useBalanceEditor();
+  return useMemo(() => applyRowMove(applyCellEdits(sheet, edits), move), [sheet, edits, move]);
 }
 
 /** Icono para entrar y salir del modo manual. */

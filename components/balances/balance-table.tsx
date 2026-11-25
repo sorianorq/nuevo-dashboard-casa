@@ -17,6 +17,7 @@ import {
   useBalanceEditor,
   useDisplaySheet,
 } from "./balance-editor";
+import { DragHandle, dropClasses, endClasses, rowDragAttrs, useRowDrag } from "./row-drag";
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const TOTAL_LABEL: Record<ConceptSection, string> = {
@@ -73,6 +74,7 @@ export function BalanceTable({
     });
 
   const signed = view === "desvio";
+  const drag = useRowDrag();
 
   const valueCells = (
     values: MonthValues,
@@ -147,11 +149,15 @@ export function BalanceTable({
     );
   };
 
-  const conceptRow = (row: BalanceRow, section: ConceptSection) => {
+  const conceptRow = (row: BalanceRow, section: ConceptSection, groupId: string | null = null) => {
     const isSub = row.kind === "subtotal";
     const open = !collapsed.has(row.id);
     return (
-      <tr key={row.id} className={cn((row.archived || hidden.has(row.id)) && "text-muted-foreground")}>
+      <tr
+        key={row.id}
+        {...rowDragAttrs(row, section, groupId)}
+        className={cn("group/row", (row.archived || hidden.has(row.id)) && "text-muted-foreground", dropClasses(drag, row.id, true))}
+      >
         <th
           scope="row"
           className={cn(
@@ -161,6 +167,12 @@ export function BalanceTable({
           )}
         >
           <span className="flex items-center gap-1.5">
+            <DragHandle
+              row={row}
+              section={section}
+              drag={drag}
+              className="-ml-3 h-7 w-5 opacity-30 group-hover/row:opacity-100 focus-visible:opacity-100"
+            />
             <DeleteConceptButton row={row} className="-ml-2" />
             <HideRowButton row={row} className="-ml-1.5" />
             {isSub ? (
@@ -199,6 +211,7 @@ export function BalanceTable({
     <div
       ref={boxRef}
       data-wide
+      data-drag-scope
       style={maxHeight ? { maxHeight } : undefined}
       className="scrollbar-visible max-h-[calc(100dvh-22rem)] min-h-[360px] overflow-auto rounded-card border bg-card"
     >
@@ -256,10 +269,10 @@ export function BalanceTable({
               {block.rows.filter(visible).flatMap((row) => [
                 conceptRow(row, block.section),
                 ...(row.kind === "subtotal" && !collapsed.has(row.id)
-                  ? row.children.filter(visible).map((child) => conceptRow(child, block.section))
+                  ? row.children.filter(visible).map((child) => conceptRow(child, block.section, row.id))
                   : []),
               ])}
-              <tr>
+              <tr className={endClasses(drag, block.section, true)}>
                 <td colSpan={cols} className="sticky left-0 border-b px-4">
                   <AddConceptButton section={block.section} />
                 </td>

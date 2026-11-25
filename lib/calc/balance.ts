@@ -293,3 +293,53 @@ export function applyCellEdits(
     blocks: sheet.blocks.map((b) => ({ ...b, rows: b.rows.map((r) => ({ ...patch(r), children: r.children.map(patch) })) })),
   });
 }
+
+export type RowMove = { rowId: string; parentId: string | null; beforeId: string | null };
+
+/**
+ * Hoja con una fila recolocada (arrastrar y soltar), mientras se guarda: se
+ * quita de donde estaba y se pone delante de `beforeId` (o al final) dentro de
+ * `parentId`. Si cambia de grupo, se recalculan los dos subtotales.
+ */
+export function applyRowMove(sheet: BalanceSheet, move: RowMove | null): BalanceSheet {
+  if (!move) return sheet;
+  const block = sheet.blocks.find((b) => b.rows.some((r) => r.id === move.rowId || r.children.some((c) => c.id === move.rowId)));
+  if (!block) return sheet;
+  let moving: BalanceRow | null = null;
+  const take = (list: BalanceRow[]) =>
+    list.filter((r) => {
+      if (r.id !== move.rowId) return true;
+      moving = r;
+      return false;
+    });
+  const insert = (list: BalanceRow[], row: BalanceRow) => {
+    const i = move.beforeId ? list.findIndex((r) => r.id === move.beforeId) : -1;
+    return i < 0 ? [...list, row] : [...list.slice(0, i), row, ...list.slice(i)];
+  };
+  const regroup = (r: BalanceRow, children: BalanceRow[]): BalanceRow =>
+    children === r.children
+      ? r
+      : {
+          ...r,
+          children,
+          real: sumValues(children.map((c) => c.real)),
+          budget: sumValues(children.map((c) => c.budget)),
+          deviation: sumValues(children.map((c) => c.deviation)),
+        };
+
+  let rows = take(block.rows).map((r) => {
+    if (r.kind !== "subtotal") return r;
+    const kids = take(r.children);
+    return regroup(r, kids.length === r.children.length ? r.children : kids);
+  });
+  const row = moving as BalanceRow | null;
+  if (!row) return sheet;
+  if (move.parentId) {
+    if (row.kind === "subtotal") return sheet;
+    const child = { ...row, depth: 1 as const, parentId: move.parentId };
+    rows = rows.map((r) => (r.id === move.parentId ? regroup(r, insert(r.children, child)) : r));
+  } else {
+    rows = insert(rows, { ...row, depth: 0, parentId: null });
+  }
+  return { ...sheet, blocks: sheet.blocks.map((b) => (b === block ? { ...b, rows } : b)) };
+}

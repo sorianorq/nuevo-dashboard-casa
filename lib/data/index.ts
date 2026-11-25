@@ -48,6 +48,7 @@ export {
   createBalanceConcept,
   updateBalanceConcept,
   moveBalanceConcept,
+  reorderBalanceConcept,
   setConceptArchived,
   previewDeleteConcept,
   setConceptNote,

@@ -185,6 +185,14 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    Debajo, plegado, «Fuera del presupuesto» con lo gastado en otros conceptos y «Añadir» en cada uno.
    Se quitó «Rellenar vacíos con la media». Probado (añadir y quitar, 390 y 1440 px, sin errores);
    importes restaurados idénticos.
+9. **Balances: colocar conceptos arrastrando la fila (25/11/2026, petición de Ricardo).** Asa ⋮⋮ al
+   principio de cada fila (ordenador y móvil): se suelta entre dos filas del mismo bloque, sobre un
+   subtotal para meterlo en ese grupo (resaltado) o al final del bloque; un subtotal se mueve con su
+   grupo, solo en primer nivel. Línea marrón donde caerá, la fila se ve movida al instante (subtotales
+   recalculados, `applyRowMove`) y se guarda con `reorderBalanceConcept` (renumera de 10 en 10 los
+   hermanos, archivados incluidos; cambia `parent_id` si cambia de grupo). Esc cancela; con teclado,
+   flechas sobre el asa (Subir/Bajar del menú siguen). Probado (subir, sacar de un grupo, meter en
+   otro, móvil; sin errores) con copia previa del orden; restaurado idéntico.
    _Versión anterior (por meses), sustituida:_ **Fase 5 · Presupuesto y alta rápida.** Presupuesto **hecho y probado** (18/11/2026,
    script 10 ejecutado por Ricardo): pestañas Casa | persona (selector admin), mes ‹ › hasta 12
    meses por delante, gastado / presupuestado de Gastos con % y previsión a fin de mes,
