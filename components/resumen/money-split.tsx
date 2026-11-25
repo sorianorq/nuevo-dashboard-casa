@@ -34,7 +34,7 @@ export function MoneySplit({ income, expenses, monthLabel }: { income: number; e
   const pct = (v: number) => `${base > 0 ? (v / base) * 100 : 0}%`;
 
   return (
-    <section aria-labelledby="split-title" className="h-full rounded-card border bg-card p-4 lg:p-5">
+    <section aria-labelledby="split-title" className="h-full fc-float p-4 lg:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 id="split-title" className="flex items-center gap-2 text-sm font-bold">
           <SectionIcon icon={Coins} tone="var(--series-savings)" />

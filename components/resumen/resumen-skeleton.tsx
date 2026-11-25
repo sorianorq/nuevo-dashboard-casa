@@ -7,12 +7,12 @@ export function ResumenSkeleton() {
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-[104px] rounded-card border bg-card" />
+          <div key={i} className="h-[104px] fc-float" />
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <div className="h-[340px] rounded-card border bg-card lg:col-span-2" />
-        <div className="h-[340px] rounded-card border bg-card" />
+        <div className="h-[340px] fc-float lg:col-span-2" />
+        <div className="h-[340px] fc-float" />
       </div>
     </div>
   );

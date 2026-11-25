@@ -19,7 +19,7 @@ export function SupermarketCard({ data }: { data: SupermarketSummary }) {
     : "mes completo";
 
   return (
-    <section className="rounded-card border bg-card p-4 lg:p-5" aria-labelledby="super-title">
+    <section className="fc-float p-4 lg:p-5" aria-labelledby="super-title">
       <div className="flex items-center justify-between gap-2">
         <h2 id="super-title" className="inline-flex items-center gap-2 text-sm font-bold">
           <ShoppingBasket className="size-4 text-brand" aria-hidden />

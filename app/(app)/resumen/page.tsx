@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Resumen" };
 export default function ResumenPage(props: PageProps<"/resumen">) {
   return (
     <>
-      <PageHeader eyebrow="Resumen" title="Resumen" />
+      <PageHeader title="Resumen" />
       <Suspense fallback={<ResumenSkeleton />}>
         <ResumenContent searchParams={props.searchParams} />
       </Suspense>

@@ -162,6 +162,18 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+  /* Superficies del navegador con la paleta de la app. */
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+  input,
+  textarea {
+    caret-color: var(--accent);
+  }
+  html {
+    scrollbar-color: color-mix(in oklab, var(--muted) 45%, transparent) transparent;
+  }
 }
 
 @layer components {
@@ -178,6 +190,19 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--accent);
+  }
+  /*
+   * Tarjeta flotante: sin borde marcado, con un filo casi invisible y una
+   * sombra suave en capas (con desplazamiento hacia abajo, como luz real).
+   */
+  .fc-float {
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    box-shadow:
+      0 0 0 1px rgb(20 23 31 / 0.045),
+      0 1px 2px rgb(20 23 31 / 0.04),
+      0 4px 8px -4px rgb(20 23 31 / 0.06),
+      0 18px 36px -18px rgb(20 23 31 / 0.16);
   }
   /* Barra de scroll siempre visible (macOS la oculta si no se define). */
   .scrollbar-visible {
@@ -221,7 +246,7 @@
   }
 }
 
-/* Botón flotante «Ticket» del móvil: aparece con un pequeño salto. */
+/* Botones flotantes del móvil: aparecen deslizándose (deceleración suave). */
 @keyframes ticket-pop {
   from {
     opacity: 0;
@@ -233,7 +258,7 @@
   }
 }
 .ticket-fab {
-  animation: ticket-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both;
+  animation: ticket-pop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 @media (prefers-reduced-motion: reduce) {
   .ticket-fab {
@@ -241,17 +266,7 @@
   }
 }
 
-/* --- Resumen: efectos de entrada (desactivados con «reducir movimiento») --- */
-@keyframes fc-rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
+/* --- Resumen: los datos «llegan» (un solo momento; nada con «reducir movimiento») --- */
 @keyframes fc-grow-x {
   from {
     transform: scaleX(0);
@@ -268,42 +283,21 @@
     transform: scaleY(1);
   }
 }
-/* Tarjetas que aparecen escalonadas: --i = posición. */
-.fc-rise {
-  animation: fc-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: calc(var(--i, 0) * 70ms);
-}
 /* Barras horizontales que crecen desde la izquierda. */
 .fc-grow-x {
   transform-origin: left center;
-  animation: fc-grow-x 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  animation-delay: calc(0.2s + var(--i, 0) * 60ms);
+  animation: fc-grow-x 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
 }
 /* Barras de las minigráficas que crecen desde la línea base. */
 .fc-grow-y {
   transform-box: fill-box;
-  animation: fc-grow-y 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  animation-delay: calc(0.25s + var(--i, 0) * 35ms);
-}
-/* Tarjeta que se eleva un poco al pasar el ratón. */
-.fc-lift {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-@media (hover: hover) {
-  .fc-lift:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 28px -14px rgb(20 23 31 / 0.28);
-  }
+  animation: fc-grow-y 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 20ms);
 }
 @media (prefers-reduced-motion: reduce) {
-  .fc-rise,
   .fc-grow-x,
   .fc-grow-y {
     animation: none;
-  }
-  .fc-lift:hover {
-    transform: none;
   }
 }

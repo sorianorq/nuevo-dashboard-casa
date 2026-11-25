@@ -29,7 +29,7 @@ export function BudgetPace({
 }) {
   if (budget <= 0 && investBudget <= 0) {
     return (
-      <section aria-labelledby="pace-title" className="h-full rounded-card border bg-card p-4 lg:p-5">
+      <section aria-labelledby="pace-title" className="h-full fc-float p-4 lg:p-5">
         <h2 id="pace-title" className="flex items-center gap-2 text-sm font-bold">
           <SectionIcon icon={Target} tone="var(--series-expense)" />
           Presupuesto del mes
@@ -49,7 +49,7 @@ export function BudgetPace({
   const pct = (v: number) => `${(v / scale) * 100}%`;
 
   return (
-    <section aria-labelledby="pace-title" className="h-full rounded-card border bg-card p-4 lg:p-5">
+    <section aria-labelledby="pace-title" className="h-full fc-float p-4 lg:p-5">
       <div className="flex items-center justify-between gap-2">
         <h2 id="pace-title" className="flex items-center gap-2 text-sm font-bold">
           <SectionIcon icon={Target} tone="var(--series-expense)" />

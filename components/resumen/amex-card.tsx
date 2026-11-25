@@ -5,7 +5,7 @@ import { formatAmount } from "@/lib/format";
 /** Amex en 2 columnas: gastado en el mes | pendiente de traspaso (todas las fechas). */
 export function AmexCard({ monthSpent, pending }: { monthSpent: number; pending: number }) {
   return (
-    <section className="rounded-card border bg-card p-4 lg:p-5" aria-labelledby="amex-title">
+    <section className="fc-float p-4 lg:p-5" aria-labelledby="amex-title">
       <div className="flex items-center justify-between gap-2">
         <h2 id="amex-title" className="inline-flex items-center gap-2 text-sm font-bold">
           <CreditCard className="size-4 text-brand" aria-hidden />
