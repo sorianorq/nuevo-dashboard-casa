@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, TriangleAlert } from "lucide-react";
+import { ChevronRight, Receipt, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePurchaseEditor } from "./purchase-editor";
@@ -37,7 +37,12 @@ export function PurchaseHistory({ purchases }: { purchases: Purchase[] }) {
                   {formatDate(p.date).slice(0, 5)}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{p.store?.trim() || "Sin tienda"}</span>
+                  <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                    {p.store?.trim() || "Sin tienda"}
+                    {p.ticketPath && (
+                      <Receipt className="size-3.5 shrink-0 text-brand" aria-label="Con foto del ticket" role="img" />
+                    )}
+                  </span>
                   <span className="text-xs text-muted-foreground">{payNote(p)}</span>
                 </span>
                 <span className="text-[15px] font-bold tabular-nums">{formatAmount(p.total)}</span>

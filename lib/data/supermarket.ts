@@ -35,6 +35,15 @@ function toPurchase(r: Record<string, unknown>): Purchase {
     total: num(r.total),
     // Agrupar siempre por catId (los nombres de categoría cambiaron).
     lines: items.map((i) => ({ catId: String(i.catId ?? "otros"), amount: num(i.amount) })),
+    // Columnas del script 15 (si aún no existen, la compra va sin ticket).
+    ticketPath: typeof r.ticket_path === "string" ? r.ticket_path : null,
+    ticketLines: Array.isArray(r.ticket_lines)
+      ? (r.ticket_lines as Record<string, unknown>[]).map((l) => ({
+          text: String(l.text ?? ""),
+          amount: num(l.amount),
+          catId: String(l.catId ?? "otros"),
+        }))
+      : null,
   };
 }
 
@@ -53,7 +62,7 @@ export async function getSupermarket(ym: YearMonth, today: string): Promise<Supe
     fetchAll((a, b) =>
       supabase
         .from("supermarket_purchases")
-        .select("id, purchase_date, store_name, payment_type, total, items")
+        .select("*")
         .gte("purchase_date", from)
         .lte("purchase_date", to)
         .order("id")

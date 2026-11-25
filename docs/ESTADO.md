@@ -201,6 +201,19 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    (`createBalanceConcept` admite `kind: "subtotal"`, sin padre). Probado (crear concepto con
    apartado nuevo, en apartado existente, nombre repetido rechazado, grupo desde Balances; sin
    errores); las 4 filas de prueba «ZZ …» se borraron.
+10. **Supermercado: foto del ticket (25/11/2026, petición de Ricardo; script 15 PENDIENTE de ejecutar).**
+   «Foto del ticket» en Nueva/Editar compra: la foto se reduce en el móvil (lado largo 2400 px,
+   JPEG), va a `POST /api/supermercado/ticket` (ruta, no acción: puede pasar de 1 MB), se guarda en el
+   almacén privado `tickets` como `pending/<uuid>.jpg` y se lee con Claude (`lib/supermarket/ticket.ts`,
+   claude-opus-5-5, salida estructurada zod: tienda, fecha, total, pago, líneas con texto, importe y
+   categoría; descuentos aplicados a su producto). Se revisa antes de guardar: categoría e importe
+   de cada línea, quitar líneas, «Cuadra con el total del ticket» o aviso si no. Al guardar, la foto
+   pasa a `compras/<id>.jpg` (`ticket_path`) y las líneas a `ticket_lines`; las líneas por categoría
+   (`items`) salen de ellas. Borrar la compra borra la foto; las pendientes de más de 1 día se
+   limpian solas. Icono de ticket en el historial. Script 15: columnas `ticket_path`,
+   `ticket_lines`, almacén privado y permisos (como Supermercado). Probado: lectura de un ticket de
+   prueba tipo Mercadona (14 líneas, descuento, peso; 7 s, todo correcto) y pantalla en móvil sin
+   el script (aviso claro); falta la prueba completa tras el script 15.
 9. **Balances: colocar conceptos arrastrando la fila (25/11/2026, petición de Ricardo).** Asa ⋮⋮ al
    principio de cada fila (ordenador y móvil): se suelta entre dos filas del mismo bloque, sobre un
    subtotal para meterlo en ese grupo (resaltado) o al final del bloque; un subtotal se mueve con su

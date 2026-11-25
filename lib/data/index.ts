@@ -64,8 +64,12 @@ export {
   updatePurchase,
   deletePurchase,
   listStores,
+  uploadPendingTicket,
+  removeTicketPhoto,
+  ticketPhotoUrl,
   type PurchaseInput,
   type PaidBy,
+  type TicketLine,
 } from "./supermarket-edit";
 export {
   getAmex,

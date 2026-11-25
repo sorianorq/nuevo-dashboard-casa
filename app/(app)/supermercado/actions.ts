@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { createPurchase, deletePurchase, updatePurchase, type PurchaseInput } from "@/lib/data";
+import { createPurchase, deletePurchase, ticketPhotoUrl, updatePurchase, type PurchaseInput } from "@/lib/data";
 
 /**
  * Acciones de Supermercado (sección compartida). El usuario sale siempre de la
@@ -35,7 +35,14 @@ function validInput(v: unknown): v is PurchaseInput {
     typeof i.payment === "string" &&
     typeof i.paidBy === "string" &&
     Array.isArray(i.lines) &&
-    i.lines.every((l) => l && typeof l.catId === "string" && typeof l.amount === "number")
+    i.lines.every((l) => l && typeof l.catId === "string" && typeof l.amount === "number") &&
+    (i.ticket === undefined ||
+      i.ticket === null ||
+      (typeof i.ticket.path === "string" &&
+        Array.isArray(i.ticket.lines) &&
+        i.ticket.lines.every(
+          (l) => l && typeof l.text === "string" && typeof l.catId === "string" && typeof l.amount === "number",
+        )))
   );
 }
 
@@ -54,5 +61,13 @@ export async function removePurchase(id: string) {
     await deletePurchase(id);
     refresh();
     return {};
+  });
+}
+
+/** Enlace temporal para ver la foto de un ticket. */
+export async function getTicketPhoto(path: string) {
+  return run(async () => {
+    if (typeof path !== "string" || path.length > 120) throw new Error("Datos no válidos.");
+    return { url: await ticketPhotoUrl(path) };
   });
 }

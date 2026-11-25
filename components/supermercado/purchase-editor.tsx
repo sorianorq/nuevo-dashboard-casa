@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useTransition } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Plus, X } from "lucide-react";
+import { AlertTriangle, Camera, Check, Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,7 @@ import { formatAmount } from "@/lib/format";
 import type { Purchase } from "@/lib/calc/supermarket";
 import { PAYMENT_TYPE_LABEL, SUPER_CATEGORIES, SUPER_CATEGORY_NAME, type PaymentType } from "@/lib/labels";
 import { parseAmount } from "@/components/balances/balance-editor";
-import { removePurchase, savePurchase } from "@/app/(app)/supermercado/actions";
+import { getTicketPhoto, removePurchase, savePurchase } from "@/app/(app)/supermercado/actions";
 
 type PaidBy = Person;
 const PAYMENTS: PaymentType[] = ["tarjeta", "efectivo", "amex", "otros"];
@@ -40,6 +40,45 @@ const SHORT: Record<string, string> = {
   congelados: "Congelados",
   otros: "Otros",
 };
+
+type TicketRow = { key: number; text: string; amount: string; catId: string };
+type Ticket = { path: string; total: number | null; photo: string | null; rows: TicketRow[] };
+type ReadResponse =
+  | {
+      ok: true;
+      path: string;
+      read: {
+        store: string | null;
+        date: string | null;
+        total: number | null;
+        payment: "tarjeta" | "efectivo" | "amex" | null;
+        lines: { text: string; amount: number; category: string }[];
+      };
+    }
+  | { ok: false; error: string };
+
+const toText = (n: number) => n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false });
+let rowKey = 0;
+
+/** Reduce la foto en el móvil (lado largo 2400 px, JPEG) antes de subirla. */
+async function compressPhoto(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, "image/jpeg", 0.85));
+    if (!blob) throw new Error("No se pudo preparar la foto.");
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 type Ctx = { openNew: () => void; openEdit: (p: Purchase) => void };
 const EditorContext = createContext<Ctx | null>(null);
@@ -117,6 +156,30 @@ function PurchaseForm({
     for (const l of purchase?.lines ?? []) m.set(l.catId, Math.round(((m.get(l.catId) ?? 0) + l.amount) * 100) / 100);
     return [...m].map(([catId, amount]) => ({ catId, amount }));
   });
+  const [ticket, setTicket] = useState<Ticket | null>(() =>
+    purchase?.ticketPath && purchase.ticketLines?.length
+      ? {
+          path: purchase.ticketPath,
+          total: null,
+          photo: null,
+          rows: purchase.ticketLines.map((l) => ({ key: ++rowKey, text: l.text, amount: toText(l.amount), catId: l.catId })),
+        }
+      : null,
+  );
+  const [reading, setReading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  // Foto ya guardada: enlace temporal al abrir la compra.
+  const savedPath = purchase?.ticketPath ?? null;
+  useEffect(() => {
+    if (!savedPath) return;
+    let alive = true;
+    void getTicketPhoto(savedPath).then((res) => {
+      if (alive && res.ok) setTicket((t) => (t && t.path === savedPath ? { ...t, photo: res.url } : t));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [savedPath]);
   const [cat, setCat] = useState<string>("frutas");
   const [amount, setAmount] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -124,8 +187,63 @@ function PurchaseForm({
 
   const parsed = parseAmount(amount);
   const amountValid = parsed !== null && !Number.isNaN(parsed) && parsed > 0;
-  const total = Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100;
-  const canSave = lines.length > 0 && store.trim() !== "" && /^\d{4}-\d{2}-\d{2}$/.test(date) && !pending;
+  // Con ticket, las líneas por categoría salen de lo leído.
+  const ticketRows = ticket?.rows.map((r) => ({ ...r, value: parseAmount(r.amount) })) ?? [];
+  const badRows = ticketRows.filter((r) => r.value === null || Number.isNaN(r.value) || r.value === 0);
+  const catLines = ticket
+    ? (() => {
+        const m = new Map<string, number>();
+        for (const r of ticketRows) if (r.value && !Number.isNaN(r.value)) m.set(r.catId, Math.round(((m.get(r.catId) ?? 0) + r.value) * 100) / 100);
+        return [...m].map(([catId, amount]) => ({ catId, amount }));
+      })()
+    : lines;
+  const total = Math.round(catLines.reduce((s, l) => s + l.amount, 0) * 100) / 100;
+  const ticketDiff = ticket?.total != null ? Math.round((total - ticket.total) * 100) / 100 : null;
+  const canSave =
+    catLines.length > 0 &&
+    store.trim() !== "" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    !pending &&
+    !reading &&
+    (!ticket || (badRows.length === 0 && ticketRows.length > 0));
+
+  const readPhoto = async (file: File) => {
+    setReading(true);
+    try {
+      const blob = await compressPhoto(file);
+      const form = new FormData();
+      form.append("photo", blob, "ticket.jpg");
+      const res = (await fetch("/api/supermercado/ticket", { method: "POST", body: form }).then((r) => r.json())) as ReadResponse;
+      if (!res.ok) return void toast.error(res.error);
+      const r = res.read;
+      setTicket({
+        path: res.path,
+        total: r.total,
+        photo: URL.createObjectURL(blob),
+        rows: r.lines.map((l) => ({
+          key: ++rowKey,
+          text: l.text,
+          amount: toText(l.amount),
+          catId: l.category in SUPER_CATEGORY_NAME ? l.category : "otros",
+        })),
+      });
+      if (r.store) {
+        const known = stores.find((s) => s.toLowerCase() === r.store!.toLowerCase());
+        const name = known ?? r.store;
+        setStore(name);
+        setOtherStore(!usual.includes(name));
+      }
+      if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date <= today) setDate(r.date);
+      if (r.payment) setPayment(r.payment);
+      toast.success(`Ticket leído: ${r.lines.length} ${r.lines.length === 1 ? "línea" : "líneas"}. Revisa las categorías.`);
+    } catch {
+      toast.error("No se pudo leer el ticket. Revisa la conexión e inténtalo otra vez.");
+    } finally {
+      setReading(false);
+    }
+  };
+  const updateRow = (key: number, patch: Partial<TicketRow>) =>
+    setTicket((t) => (t ? { ...t, rows: t.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)) } : t));
 
   const addLine = () => {
     if (!amountValid || parsed === null) return;
@@ -141,7 +259,16 @@ function PurchaseForm({
 
   const save = () =>
     start(async () => {
-      const res = await savePurchase(purchase?.id ?? null, { date, store, payment, paidBy, lines });
+      const res = await savePurchase(purchase?.id ?? null, {
+        date,
+        store,
+        payment,
+        paidBy,
+        lines: catLines,
+        ticket: ticket
+          ? { path: ticket.path, lines: ticketRows.map((r) => ({ text: r.text, amount: r.value as number, catId: r.catId })) }
+          : null,
+      });
       if (!res.ok) return void toast.error(res.error);
       // Cerrar dentro de la transición: así se cierra junto con la página ya actualizada.
       start(() => {
@@ -166,10 +293,50 @@ function PurchaseForm({
       <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar compra" : "Nueva compra"}</DialogTitle>
-          <DialogDescription>Las líneas van por categoría; repetir una categoría suma a su línea.</DialogDescription>
+          <DialogDescription>
+            Hazle una foto al ticket y se rellenan solas las líneas, o apúntalas a mano por categoría.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void readPhoto(f);
+            }}
+          />
+          {reading ? (
+            <div role="status" className="flex items-center gap-3 rounded-xl border bg-brand-soft/50 p-4 text-sm">
+              <Loader2 className="size-5 animate-spin text-brand" aria-hidden />
+              <span>
+                <strong className="block">Leyendo el ticket…</strong>
+                <span className="text-muted-foreground">Suele tardar entre 10 y 30 segundos.</span>
+              </span>
+            </div>
+          ) : ticket ? (
+            <TicketPanel
+              ticket={ticket}
+              rows={ticketRows}
+              total={total}
+              diff={ticketDiff}
+              onRetake={() => fileRef.current?.click()}
+              onRemove={() => setTicket(null)}
+              onRow={updateRow}
+              onDeleteRow={(key) => setTicket((t) => (t ? { ...t, rows: t.rows.filter((r) => r.key !== key) } : t))}
+            />
+          ) : (
+            <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} className="h-14 w-full rounded-xl text-base">
+              <Camera aria-hidden /> Foto del ticket
+            </Button>
+          )}
+
           <div className="space-y-1.5">
             <label htmlFor="p-date" className="text-xs font-bold text-muted-foreground">
               Fecha
@@ -236,6 +403,7 @@ function PurchaseForm({
             )}
           </fieldset>
 
+          {!ticket && (
           <fieldset className="space-y-2">
             <legend className="text-xs font-bold text-muted-foreground">Categoría</legend>
             <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
@@ -277,13 +445,16 @@ function PurchaseForm({
               </Button>
             </form>
           </fieldset>
+          )}
 
+          {ticket && <h3 className="text-xs font-bold text-muted-foreground">Por categoría</h3>}
           <ul className="border-t">
-            {lines.length === 0 && <li className="py-3 text-sm text-muted-foreground">Aún no hay líneas.</li>}
-            {lines.map((l) => (
+            {catLines.length === 0 && <li className="py-3 text-sm text-muted-foreground">Aún no hay líneas.</li>}
+            {catLines.map((l) => (
               <li key={l.catId} className="flex min-h-11 items-center gap-2 border-b">
                 <span className="flex-1 text-sm font-semibold">{SUPER_CATEGORY_NAME[l.catId] ?? l.catId}</span>
                 <span className="text-sm font-bold tabular-nums">{formatAmount(l.amount)}</span>
+                {!ticket && (
                 <button
                   type="button"
                   aria-label={`Quitar ${SUPER_CATEGORY_NAME[l.catId] ?? l.catId}`}
@@ -292,6 +463,7 @@ function PurchaseForm({
                 >
                   <X className="size-4" aria-hidden />
                 </button>
+                )}
               </li>
             ))}
           </ul>
@@ -321,5 +493,108 @@ function PurchaseForm({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Foto del ticket y líneas leídas: cada una con su categoría e importe (se pueden corregir). */
+function TicketPanel({
+  ticket,
+  rows,
+  total,
+  diff,
+  onRetake,
+  onRemove,
+  onRow,
+  onDeleteRow,
+}: {
+  ticket: Ticket;
+  rows: (TicketRow & { value: number | null })[];
+  total: number;
+  diff: number | null;
+  onRetake: () => void;
+  onRemove: () => void;
+  onRow: (key: number, patch: Partial<TicketRow>) => void;
+  onDeleteRow: (key: number) => void;
+}) {
+  return (
+    <section aria-labelledby="ticket-title" className="space-y-3 rounded-xl border p-3">
+      <div className="flex items-start gap-3">
+        {ticket.photo ? (
+          <a href={ticket.photo} target="_blank" rel="noreferrer" className="shrink-0" title="Ver la foto en grande">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={ticket.photo} alt="Foto del ticket" className="h-24 w-16 rounded-lg border object-cover object-top" />
+          </a>
+        ) : (
+          <div className="grid h-24 w-16 shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          </div>
+        )}
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <h3 id="ticket-title" className="text-sm font-bold">
+            Ticket · {rows.length} {rows.length === 1 ? "línea" : "líneas"}
+          </h3>
+          {diff === null ? (
+            <p className="text-xs text-muted-foreground">Suma de las líneas: {formatAmount(total)}</p>
+          ) : Math.abs(diff) < 0.005 ? (
+            <p className="flex items-center gap-1 text-xs font-semibold text-positive">
+              <Check className="size-3.5" aria-hidden /> Cuadra con el total del ticket ({formatAmount(total)})
+            </p>
+          ) : (
+            <p className="flex items-start gap-1 text-xs font-semibold text-warning">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              Las líneas suman {formatAmount(total)} y el ticket dice {formatAmount(total - diff)}: revisa los importes.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onRetake} className="h-9 rounded-lg">
+              <Camera aria-hidden /> Otra foto
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={onRemove} className="h-9 rounded-lg text-muted-foreground">
+              Quitar ticket
+            </Button>
+          </div>
+        </div>
+      </div>
+      <ul className="max-h-[45dvh] overflow-y-auto border-t">
+        {rows.map((r) => {
+          const bad = r.value === null || Number.isNaN(r.value) || r.value === 0;
+          return (
+            <li key={r.key} className="grid grid-cols-[minmax(0,1fr)_5.5rem_2.25rem] items-center gap-x-2 gap-y-1 border-b py-2">
+              <span className="truncate text-[13px] font-semibold" title={r.text}>
+                {r.text}
+              </span>
+              <input
+                aria-label={`Importe de ${r.text}`}
+                inputMode="decimal"
+                value={r.amount}
+                onChange={(e) => onRow(r.key, { amount: e.target.value })}
+                aria-invalid={bad}
+                className="h-9 w-full rounded-lg border bg-surface px-2 text-right text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive"
+              />
+              <button
+                type="button"
+                aria-label={`Quitar ${r.text}`}
+                onClick={() => onDeleteRow(r.key)}
+                className="row-span-2 grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-accent"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+              <select
+                aria-label={`Categoría de ${r.text}`}
+                value={r.catId}
+                onChange={(e) => onRow(r.key, { catId: e.target.value })}
+                className="col-span-2 h-9 w-full min-w-0 rounded-lg border bg-surface px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {SUPER_CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

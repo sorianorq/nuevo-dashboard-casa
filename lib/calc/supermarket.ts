@@ -16,6 +16,10 @@ export type Purchase = {
   payment: string | null;
   total: number;
   lines: PurchaseLine[];
+  /** Foto del ticket en el almacén «tickets» (null = sin ticket). */
+  ticketPath?: string | null;
+  /** Líneas leídas del ticket, con la categoría que quedó. */
+  ticketLines?: { text: string; amount: number; catId: string }[] | null;
   /** Si tiene gasto en la Amex (pagada con Amex): quién la pagó. */
   amexPaidBy?: "otros" | "andrea" | "ricardo" | null;
 };
