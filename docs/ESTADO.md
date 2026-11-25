@@ -178,6 +178,13 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    Ingresos no se presupuestan aquí. Balances usa ese importe en todos los meses (Presupuesto y
    Desvío); en el modo manual, cambiarlo en un mes lo cambia en todos. Probado con la sesión de
    Ricardo (guardar, quitar, rellenar; 390 y 1440 px, sin errores); el importe de prueba se quitó.
+   **Poner y quitar conceptos (25/11/2026, petición de Ricardo):** las tablas solo muestran los
+   conceptos que están en el presupuesto (con importe, aunque sea 0). «+ Añadir concepto» abre un
+   diálogo (concepto no archivado y sin presupuesto, importe propuesto = media); «Editar o quitar»
+   cambia importes y la × de cada fila lo saca (vacío = fuera; nada se guarda hasta «Guardar»).
+   Debajo, plegado, «Fuera del presupuesto» con lo gastado en otros conceptos y «Añadir» en cada uno.
+   Se quitó «Rellenar vacíos con la media». Probado (añadir y quitar, 390 y 1440 px, sin errores);
+   importes restaurados idénticos.
    _Versión anterior (por meses), sustituida:_ **Fase 5 · Presupuesto y alta rápida.** Presupuesto **hecho y probado** (18/11/2026,
    script 10 ejecutado por Ricardo): pestañas Casa | persona (selector admin), mes ‹ › hasta 12
    meses por delante, gastado / presupuestado de Gastos con % y previsión a fin de mes,

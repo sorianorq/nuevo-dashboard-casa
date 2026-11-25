@@ -20,6 +20,8 @@ export type BudgetLine = {
   budget: number | null;
   /** Media de los 6 meses cerrados anteriores (null si no hubo gasto). */
   average: number | null;
+  /** Concepto archivado en Balances (no se ofrece para añadir). */
+  archived: boolean;
 };
 
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;

@@ -61,6 +61,7 @@ export async function getBudget(ctx: DataContext, ym: YearMonth, today: string):
       spent: round2(spent),
       budget,
       average: values.some((v) => v > 0) ? proposeFromHistory(values) : null,
+      archived: r.archived,
     });
   }
 
