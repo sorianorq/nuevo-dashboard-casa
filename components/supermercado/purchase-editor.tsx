@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Camera, Check, Loader2, Plus, Receipt, X } from "lucide-react";
+import { AlertTriangle, Camera, Check, Loader2, Plus, Receipt, Wallet, X } from "lucide-react";
+import { useQuickAdd } from "@/components/layout/quick-add";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -128,28 +129,44 @@ export function PurchaseEditor({
 }
 
 /**
- * Botón flotante del móvil (encima de la barra inferior): abre directamente la
- * cámara y, con la foto hecha, la compra nueva leyendo el ticket.
+ * Botones flotantes del móvil (encima de la barra inferior, abajo a la derecha):
+ * - «Gasto»: el alta rápida de gasto (lo mismo que el ➕ de la barra).
+ * - «Ticket»: abre directamente la cámara y, con la foto, la compra nueva
+ *   leyendo el ticket.
  */
-export function TicketCameraButton() {
+export function MobileQuickActions() {
   const { openWithPhoto } = usePurchaseEditor();
+  const quickAdd = useQuickAdd();
+  const pill =
+    "ticket-fab flex h-14 cursor-pointer items-center gap-2 rounded-full pr-5 pl-4 text-[15px] font-bold shadow-lg ring-4 ring-background transition-transform active:scale-95";
   return (
-    <label className="ticket-fab fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex h-14 cursor-pointer items-center gap-2 rounded-full bg-foreground pr-5 pl-4 text-[15px] font-bold text-background shadow-lg ring-4 ring-background transition-transform active:scale-95 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring lg:hidden">
-      <Receipt className="size-5" aria-hidden />
-      Ticket
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        aria-label="Hacer foto del ticket de la compra"
-        className="sr-only"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = "";
-          if (f) openWithPhoto(f);
-        }}
-      />
-    </label>
+    <div className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex flex-col items-end gap-3 lg:hidden">
+      <button
+        type="button"
+        onClick={quickAdd.open}
+        aria-label="Apuntar un gasto"
+        className={cn(pill, "bg-brand text-primary-foreground [animation-delay:0.4s]")}
+      >
+        <Wallet className="size-5" aria-hidden />
+        Gasto
+      </button>
+      <label className={cn(pill, "bg-foreground text-background has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring")}>
+        <Receipt className="size-5" aria-hidden />
+        Ticket
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          aria-label="Hacer foto del ticket de la compra"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) openWithPhoto(f);
+          }}
+        />
+      </label>
+    </div>
   );
 }
 

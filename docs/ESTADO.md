@@ -223,6 +223,9 @@ y el rol admin. La importación sí está probada contra la base de datos real (
    "environment"`) y, con la foto, la compra nueva ya leyendo el ticket (`openWithPhoto`). En el
    ordenador no se muestra. Probado en 390 y 1440 px, sin errores; la foto pendiente de la prueba se
    borró.
+   **Píldora «Gasto» (25/11/2026, petición de Ricardo):** encima de «Ticket», en marrón, abre el alta
+   rápida «Nuevo gasto» (lo mismo que el ➕ de la barra). Las dos van en `MobileQuickActions`
+   (Resumen y Súper). Probado en móvil, sin errores; no se guardó nada.
 9. **Balances: colocar conceptos arrastrando la fila (25/11/2026, petición de Ricardo).** Asa ⋮⋮ al
    principio de cada fila (ordenador y móvil): se suelta entre dos filas del mismo bloque, sobre un
    subtotal para meterlo en ese grupo (resaltado) o al final del bloque; un subtotal se mueve con su
