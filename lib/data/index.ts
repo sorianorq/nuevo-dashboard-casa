@@ -25,7 +25,15 @@ export {
   type ConceptOption,
   type ConceptSection,
 } from "./concepts";
-export { listAccounts, createAccount, type Account, type AccountType } from "./accounts";
+export {
+  listAccounts,
+  createAccount,
+  listAccountsWithCounts,
+  deleteAccount,
+  type Account,
+  type AccountType,
+  type AccountRow,
+} from "./accounts";
 export {
   listTransactions,
   countWithoutConcept,

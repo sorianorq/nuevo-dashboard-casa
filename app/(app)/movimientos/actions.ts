@@ -7,6 +7,7 @@ import {
   conceptHistory,
   createAccount,
   createConcept,
+  deleteAccount,
   existingImportKeys,
   findSimilar,
   getDataContext,
@@ -109,6 +110,19 @@ export async function newConcept(tab: string, name: string, section: ConceptSect
   });
 }
 
+// --- Cuentas ----------------------------------------------------------------
+
+/** Quita una cuenta sin movimientos (Casa o la persona). */
+export async function removeAccount(accountId: string) {
+  return run(async () => {
+    if (!isId(accountId)) throw new Error("Cuenta no válida.");
+    const ctx = await getDataContext();
+    await deleteAccount(ctx, accountId);
+    refresh();
+    return {};
+  });
+}
+
 // --- Cargar extracto --------------------------------------------------------
 
 export async function loadTemplate(tab: string, accountId: string) {
@@ -127,6 +141,7 @@ export async function addAccount(tab: string, input: { name: string; bank: strin
     }
     const ctx = await ctxFor(tab);
     const account: Account = await createAccount(ctx, ctx.owner, input);
+    refresh();
     return { account };
   });
 }

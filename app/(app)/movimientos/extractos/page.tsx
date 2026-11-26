@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowLeft, Landmark } from "lucide-react";
+import { ArrowLeft, Landmark, Wallet } from "lucide-react";
 import { BalanceSwitcher } from "@/components/layout/balance-switcher";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSkeleton } from "@/components/layout/page-skeleton";
@@ -67,6 +67,13 @@ async function Content({ searchParams }: { searchParams: SP }) {
       >
         <ArrowLeft className="size-4" aria-hidden />
         Movimientos
+      </Link>
+      <Link
+        href="/movimientos/cuentas"
+        className="mb-3 ml-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+      >
+        <Wallet className="size-4" aria-hidden />
+        Cuentas
       </Link>
       {bankEnabled && (
         <Link
