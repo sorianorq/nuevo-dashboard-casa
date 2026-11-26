@@ -368,12 +368,12 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
                 }}
               />
             ) : (
-              <p className="rounded-card border bg-card px-6 py-10 text-center text-muted-foreground">
+              <p className="fc-float px-6 py-10 text-center text-muted-foreground">
                 Todos los movimientos del archivo ya estaban importados.
               </p>
             )}
             {dups.length > 0 && (
-              <details className="rounded-card border bg-card px-4 py-1">
+              <details className="fc-float px-4 py-1">
                 <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">
                   {dups.length} duplicados (no se importan)
                 </summary>
@@ -419,7 +419,7 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
       )}
 
       {step === 3 && result && (
-        <div className="rounded-card border bg-card px-6 py-10 text-center">
+        <div className="fc-float px-6 py-10 text-center">
           <CheckCircle2 className="mx-auto size-10 text-positive" aria-hidden />
           <p className="mt-3 text-[20px] font-extrabold">Extracto cargado</p>
           <p className="mt-2 text-sm text-muted-foreground" role="status">
@@ -491,7 +491,7 @@ function Stepper({ step }: { step: Step }) {
 
 function Card({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-card border bg-card p-4 lg:p-5">
+    <section className="fc-float p-4 lg:p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-bold">{title}</h2>
         {action}
@@ -733,7 +733,7 @@ function PreviewTable({
       : undefined;
 
   return (
-    <div className="rounded-card border bg-card">
+    <div className="fc-float">
       <ul className="divide-y lg:hidden">
         {rows.map((r) => (
           <li key={r.line} className="space-y-2 px-4 py-3">

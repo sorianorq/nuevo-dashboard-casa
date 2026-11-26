@@ -24,7 +24,7 @@ const PATH = "/contabilidad/balances";
 export default function Page(props: PageProps<"/contabilidad/balances">) {
   return (
     <>
-      <PageHeader eyebrow="Contabilidad" title="Balances" />
+      <PageHeader title="Balances" />
       <Suspense fallback={<PageSkeleton />}>
         <Content searchParams={props.searchParams} />
       </Suspense>
@@ -135,7 +135,7 @@ async function Content({ searchParams }: { searchParams: SP }) {
       )}
 
       {empty ? (
-        <div className="space-y-4 rounded-card border bg-card px-6 py-10 text-center text-muted-foreground">
+        <div className="space-y-4 fc-float px-6 py-10 text-center text-muted-foreground">
           <p>Este Balance aún no tiene conceptos.</p>
           <AddConceptButton variant="primary" />
         </div>

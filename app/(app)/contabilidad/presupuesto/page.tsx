@@ -17,7 +17,7 @@ type SP = PageProps<"/contabilidad/presupuesto">["searchParams"];
 export default function Page(props: PageProps<"/contabilidad/presupuesto">) {
   return (
     <>
-      <PageHeader eyebrow="Contabilidad" title="Presupuesto" />
+      <PageHeader title="Presupuesto" />
       <Suspense fallback={<PageSkeleton />}>
         <Content searchParams={props.searchParams} />
       </Suspense>

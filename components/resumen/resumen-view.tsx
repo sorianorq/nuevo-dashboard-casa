@@ -64,7 +64,6 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
     <div className="space-y-4 lg:space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <StatCard
-          float
           icon={ArrowDownToLine}
           tone="var(--series-income)"
           label="Ingresos"
@@ -81,7 +80,6 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
           }
         />
         <StatCard
-          float
           icon={ArrowUpFromLine}
           tone="var(--series-expense)"
           label="Gastos"
@@ -98,7 +96,6 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
           }
         />
         <StatCard
-          float
           icon={PiggyBank}
           tone="var(--series-savings)"
           label="Ahorro"
@@ -116,7 +113,6 @@ export function ResumenView({ summary, owner, budget }: { summary: Summary; owne
           }
         />
         <StatCard
-          float
           icon={Gauge}
           tone="var(--series-savings)"
           label="Tasa de ahorro"

@@ -25,7 +25,7 @@ type SP = PageProps<"/movimientos/revisar">["searchParams"];
 export default function RevisarPage(props: PageProps<"/movimientos/revisar">) {
   return (
     <>
-      <PageHeader eyebrow="Movimientos" title="Revisar sin concepto" />
+      <PageHeader title="Revisar sin concepto" />
       <Suspense fallback={<PageSkeleton />}>
         <Content searchParams={props.searchParams} />
       </Suspense>
@@ -77,7 +77,7 @@ async function Content({ searchParams }: { searchParams: SP }) {
               skipHref={qs(skip + 1)}
             />
           ) : (
-            <div className="rounded-card border bg-card px-6 py-12 text-center">
+            <div className="fc-float px-6 py-12 text-center">
               <CheckCircle2 className="mx-auto size-10 text-positive" aria-hidden />
               <p className="mt-3 text-[18px] font-extrabold">
                 {missing === 0 ? "Todo revisado" : "No quedan más por revisar en esta vuelta"}

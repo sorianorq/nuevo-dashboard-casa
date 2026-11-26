@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Ajustes" };
 export default function AjustesPage() {
   return (
     <>
-      <PageHeader eyebrow="Cuenta" title="Ajustes" />
+      <PageHeader title="Ajustes" />
       <Suspense fallback={<PageSkeleton />}>
         <Account />
       </Suspense>
@@ -24,7 +24,7 @@ export default function AjustesPage() {
 async function Account() {
   const session = await getSession();
   return (
-    <div className="max-w-lg rounded-card border bg-card">
+    <div className="max-w-lg fc-float">
       <dl className="divide-y">
         <Row label="Usuario" value={session.email} />
         <Row label="Rol" value={ROLE_LABEL[session.role]} />

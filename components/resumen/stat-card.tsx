@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 /**
  * Tarjeta de cifra: etiqueta con su icono (en el color de la serie), valor
  * grande, minigráfica, línea de variación y nota pequeña (acumulado).
- * `float`: tarjeta flotante (sombra suave) en lugar de con borde.
  */
 export function StatCard({
   label,
@@ -15,7 +14,6 @@ export function StatCard({
   spark,
   icon: Icon,
   tone,
-  float = false,
 }: {
   label: string;
   value: React.ReactNode;
@@ -28,10 +26,9 @@ export function StatCard({
   icon?: LucideIcon;
   /** Color CSS de la serie (var(--series-…)) para el icono. */
   tone?: string;
-  float?: boolean;
 }) {
   return (
-    <section className={cn("flex min-w-0 flex-col gap-1.5 p-4 lg:p-5", float ? "fc-float" : "rounded-card border bg-card")}>
+    <section className={"fc-float flex min-w-0 flex-col gap-1.5 p-4 lg:p-5"}>
       <h2 className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
         {Icon && <Icon aria-hidden className="size-4 shrink-0" strokeWidth={2.2} style={{ color: tone }} />}
         {label}

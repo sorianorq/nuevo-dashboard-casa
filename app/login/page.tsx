@@ -12,9 +12,8 @@ export default function LoginPage(props: PageProps<"/login">) {
         <div className="mb-8 flex justify-center">
           <Logo />
         </div>
-        <div className="rounded-card border bg-card p-6 sm:p-8">
-          <p className="eyebrow">Acceso</p>
-          <h1 className="mt-1 text-[28px] leading-tight font-extrabold tracking-tight">
+        <div className="fc-float p-6 sm:p-8">
+          <h1 className="text-[28px] leading-tight font-extrabold tracking-tight">
             Iniciar sesión
           </h1>
           <Suspense fallback={<LoginForm next="" />}>

@@ -1,5 +1,7 @@
 "use client";
 
+import { SectionIcon } from "@/components/resumen/stat-card";
+import { ArrowLeftRight, CreditCard, Scale } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Plus, Search } from "lucide-react";
@@ -54,7 +56,7 @@ export function AmexView({ data, monthLabel, monthNav, ...shared }: Props) {
       {/* Móvil: datos clave, pendientes, lista. Ordenador: alta + pendientes a la izquierda. */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start lg:gap-5">
         <div className="contents lg:flex lg:flex-col lg:gap-5">
-          <section aria-labelledby="new-title" className="hidden rounded-card border bg-card p-5 lg:block">
+          <section aria-labelledby="new-title" className="hidden fc-float p-5 lg:block">
             <h2 id="new-title" className="mb-4 text-[17px] font-bold">
               Nuevo gasto
             </h2>
@@ -102,14 +104,20 @@ export function AmexView({ data, monthLabel, monthNav, ...shared }: Props) {
 function Kpis({ data, monthLabel }: { data: Props["data"]; monthLabel: string }) {
   const owners: Owner[] = ["casa", "ricardo", "andrea"];
   return (
-    <section aria-label={`Datos clave de ${monthLabel}`} className="order-1 rounded-card border bg-card p-4 lg:order-none lg:p-5">
+    <section aria-label={`Datos clave de ${monthLabel}`} className="order-1 fc-float p-4 lg:order-none lg:p-5">
       <div className="grid grid-cols-2 gap-3">
         <div className="min-w-0">
-          <h2 className="text-[13px] text-muted-foreground">Gastado en el mes</h2>
+          <h2 className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            <SectionIcon icon={CreditCard} tone="var(--series-expense)" />
+            Gastado en el mes
+          </h2>
           <p className="truncate text-2xl font-extrabold tabular-nums">{formatAmount(data.spent)}</p>
         </div>
         <div className="min-w-0 border-l pl-3">
-          <h2 className="text-[13px] text-muted-foreground">Pendiente de traspaso</h2>
+          <h2 className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            <SectionIcon icon={ArrowLeftRight} />
+            Pendiente de traspaso
+          </h2>
           <p className="truncate text-2xl font-extrabold text-brand tabular-nums">{formatAmount(data.pendingTotal)}</p>
         </div>
       </div>
@@ -155,7 +163,7 @@ function PendingCard({
     });
 
   return (
-    <section aria-labelledby="pending-title" className="order-2 rounded-card border bg-card p-4 lg:order-none lg:p-5">
+    <section aria-labelledby="pending-title" className="order-2 fc-float p-4 lg:order-none lg:p-5">
       <div className="mb-1 flex items-baseline justify-between gap-2">
         <h2 id="pending-title" className="text-base font-bold lg:text-[17px]">
           Pendiente de traspaso
@@ -304,13 +312,13 @@ function ExpenseList({
       </p>
 
       {shown.length === 0 ? (
-        <p className="rounded-card border bg-card p-4 text-sm text-muted-foreground">
+        <p className="fc-float p-4 text-sm text-muted-foreground">
           {rows.length ? "Ningún gasto con estos filtros." : "Sin gastos de la Amex este mes."}
         </p>
       ) : (
         <>
           {/* Móvil: lista por día */}
-          <div className="rounded-card border bg-card px-4 pt-1 pb-2 lg:hidden">
+          <div className="fc-float px-4 pt-1 pb-2 lg:hidden">
             {[...days].map(([day, list]) => (
               <div key={day}>
                 <h3 className="pt-3 pb-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">{formatDayHeading(day)}</h3>
@@ -338,7 +346,7 @@ function ExpenseList({
           </div>
 
           {/* Ordenador: tabla */}
-          <div className="hidden overflow-x-auto rounded-card border bg-card lg:block">
+          <div className="hidden overflow-x-auto fc-float lg:block">
             <table className="w-full min-w-[40rem] border-collapse text-sm">
               <thead>
                 <tr className="text-left text-xs font-bold tracking-wide text-muted-foreground uppercase">
@@ -432,9 +440,10 @@ function CycleCard({ cycle }: { cycle: Props["data"]["cycle"] }) {
     ["Andrea", cycle.andrea],
   ] as const;
   return (
-    <section aria-labelledby="cycle-title" className="order-2 rounded-card border bg-card p-4 lg:order-none lg:p-5">
+    <section aria-labelledby="cycle-title" className="order-2 fc-float p-4 lg:order-none lg:p-5">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 id="cycle-title" className="text-base font-bold">
+        <h2 id="cycle-title" className="flex items-center gap-2 text-base font-bold">
+          <SectionIcon icon={Scale} />
           Cuadre del periodo
         </h2>
         <p className="text-xs text-muted-foreground">

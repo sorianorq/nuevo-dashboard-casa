@@ -4,7 +4,7 @@ import { OWNER_LABEL, type Owner } from "@/lib/balance";
 /** Pantalla «Próximamente» dentro del layout (fases 2–5). */
 export function ComingSoon({ owner }: { owner?: Owner }) {
   return (
-    <div className="rounded-card border bg-card px-6 py-12 text-center">
+    <div className="fc-float px-6 py-12 text-center">
       <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-brand-soft">
         <Clock className="size-6 text-brand" aria-hidden />
       </span>

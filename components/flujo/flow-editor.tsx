@@ -1,5 +1,7 @@
 "use client";
 
+import { SectionIcon } from "@/components/resumen/stat-card";
+import { ArrowLeftRight } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
@@ -605,7 +607,7 @@ function Editor({ initial }: { initial: FlowData }) {
       <EdgeActionsContext.Provider value={edgeActions}>
       <div
         ref={wrapper}
-        className="h-[62dvh] min-h-[420px] overflow-hidden rounded-card border bg-card lg:h-[68dvh]"
+        className="h-[62dvh] min-h-[420px] overflow-hidden fc-float lg:h-[68dvh]"
         aria-label="Diagrama del flujo de dinero"
       >
         <ReactFlow<AccountNode, MoneyEdge>
@@ -753,9 +755,10 @@ function TransferList({
   for (const e of fixed) out.set(e.source, (out.get(e.source) ?? 0) + (e.data?.amount ?? 0));
 
   return (
-    <section aria-labelledby="flow-transfers" className="rounded-card border bg-card p-4 lg:p-5">
+    <section aria-labelledby="flow-transfers" className="fc-float p-4 lg:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="flow-transfers" className="text-base font-bold">
+        <h2 id="flow-transfers" className="flex items-center gap-2 text-base font-bold">
+          <SectionIcon icon={ArrowLeftRight} />
           Transferencias del mes
         </h2>
         <Button onClick={onAdd} disabled={!canAdd} className="h-10 rounded-xl px-3">

@@ -46,7 +46,6 @@ export default function MovimientosPage(props: PageProps<"/movimientos">) {
   return (
     <>
       <PageHeader
-        eyebrow="Movimientos"
         title="Movimientos"
         actions={
           <Link href="/movimientos/extractos" className={cn(buttonVariants(), "h-11 rounded-xl px-4")}>

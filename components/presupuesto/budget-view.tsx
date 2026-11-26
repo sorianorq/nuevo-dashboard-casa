@@ -1,5 +1,7 @@
 "use client";
 
+import { SectionIcon } from "@/components/resumen/stat-card";
+import { PiggyBank, Wallet } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ChevronRight, Pencil, Plus, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
@@ -214,9 +216,10 @@ function Summary({
   const realPct = pctOf(realTotal + extra, base);
 
   return (
-    <section aria-labelledby={id} className="rounded-card border bg-card p-4 lg:p-5">
+    <section aria-labelledby={id} className="fc-float p-4 lg:p-5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id={id} className="text-[13px] text-muted-foreground">
+        <h2 id={id} className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          <SectionIcon icon={isExpense ? Wallet : PiggyBank} tone={isExpense ? "var(--series-expense)" : "var(--series-savings)"} />
           {isExpense ? "Gastos" : "Inversión"} de {monthLabel}
         </h2>
         {ratio !== null && (
@@ -283,7 +286,7 @@ function Summary({
 function Outside({ lines, canAdd, onAdd }: { lines: BudgetLine[]; canAdd: (id: string) => boolean; onAdd: (id: string) => void }) {
   const total = round2(lines.reduce((s, l) => s + l.spent, 0));
   return (
-    <details className="group overflow-hidden rounded-card border bg-card">
+    <details className="group overflow-hidden fc-float">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3.5 lg:px-5 [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-2">
           <ChevronRight className="size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
@@ -659,7 +662,7 @@ function BudgetTable({
   const td = "px-2 py-2.5 text-right tabular-nums first:pl-4 first:text-left last:pr-4 lg:first:pl-5 lg:last:pr-5";
 
   return (
-    <section aria-labelledby={`budget-${kind}`} className="overflow-hidden rounded-card border bg-card">
+    <section aria-labelledby={`budget-${kind}`} className="overflow-hidden fc-float">
       <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-1 lg:px-5">
         <h2 id={`budget-${kind}`} className="text-base font-bold">
           {title}

@@ -1,3 +1,4 @@
+import { ArrowUpDown, Calculator, Receipt, ShoppingCart } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -20,7 +21,7 @@ const PATH = "/supermercado";
 export default function Page(props: PageProps<"/supermercado">) {
   return (
     <>
-      <PageHeader eyebrow="Supermercado" title="Supermercado" />
+      <PageHeader title="Supermercado" />
       <Suspense fallback={<PageSkeleton />}>
         <Content searchParams={props.searchParams} />
       </Suspense>
@@ -51,13 +52,17 @@ async function Content({ searchParams }: { searchParams: PageProps<"/supermercad
       <div className="mb-4 grid grid-cols-2 gap-3 lg:mb-5 lg:grid-cols-4 lg:gap-4">
         <StatCard
           label="Gasto del mes"
+          icon={ShoppingCart}
+          tone="var(--series-expense)"
           value={formatAmount(s.spent)}
           footer={s.isCurrentMonth ? <span className="text-xs text-muted-foreground">Del día 1 a hoy</span> : undefined}
         />
-        <StatCard label="Nº de compras" value={String(data.count)} />
-        <StatCard label="Ticket medio" value={data.averageTicket === null ? "—" : formatAmount(data.averageTicket)} />
+        <StatCard label="Nº de compras" icon={Receipt} tone="var(--accent)" value={String(data.count)} />
+        <StatCard label="Ticket medio" icon={Calculator} tone="var(--accent)" value={data.averageTicket === null ? "—" : formatAmount(data.averageTicket)} />
         <StatCard
           label="vs mes anterior"
+          icon={ArrowUpDown}
+          tone="var(--accent)"
           value={
             s.vsPrevious === null
               ? "—"

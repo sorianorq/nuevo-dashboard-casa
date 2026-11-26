@@ -3,7 +3,7 @@ export function PageSkeleton() {
   return (
     <div aria-busy="true" aria-label="Cargando" className="animate-pulse space-y-4">
       <div className="mx-auto h-[52px] max-w-md rounded-2xl bg-track lg:mx-0" />
-      <div className="h-48 rounded-card border bg-card" />
+      <div className="h-48 fc-float" />
     </div>
   );
 }

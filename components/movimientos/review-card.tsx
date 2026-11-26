@@ -33,7 +33,7 @@ export function ReviewCard({
   const assign = (id: string | null) => start(async () => void (await setConcept(tx.id, id)));
 
   return (
-    <article className="rounded-card border bg-card p-5 lg:p-6" aria-busy={pending}>
+    <article className="fc-float p-5 lg:p-6" aria-busy={pending}>
       <p className="text-xs text-muted-foreground">
         {formatDate(tx.date)} · {accountName}
       </p>

@@ -213,7 +213,7 @@ export function BalanceTable({
       data-wide
       data-drag-scope
       style={maxHeight ? { maxHeight } : undefined}
-      className="scrollbar-visible max-h-[calc(100dvh-22rem)] min-h-[360px] overflow-auto rounded-card border bg-card"
+      className="scrollbar-visible max-h-[calc(100dvh-22rem)] min-h-[360px] overflow-auto fc-float"
     >
       <table className={cn("w-full border-collapse text-[13px]", notes ? "min-w-[1100px]" : "min-w-[1010px]")}>
         <caption className="sr-only">

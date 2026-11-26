@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Flujo de dinero" };
 export default function Page() {
   return (
     <>
-      <PageHeader eyebrow="Contabilidad" title="Flujo de dinero" />
+      <PageHeader title="Flujo de dinero" />
       <Suspense fallback={<PageSkeleton />}>
         <Content />
       </Suspense>

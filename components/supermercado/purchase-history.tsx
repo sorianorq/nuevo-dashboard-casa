@@ -1,7 +1,8 @@
 "use client";
 
+import { SectionIcon } from "@/components/resumen/stat-card";
 import { useEffect, useState } from "react";
-import { ChevronRight, Loader2, Receipt, TriangleAlert } from "lucide-react";
+import { ChevronRight, History, Loader2, Receipt, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePurchaseEditor } from "./purchase-editor";
@@ -19,8 +20,9 @@ export function PurchaseHistory({ purchases }: { purchases: Purchase[] }) {
   const [open, setOpen] = useState<Purchase | null>(null);
 
   return (
-    <section className="rounded-card border bg-card p-4 lg:p-5" aria-labelledby="hist-title">
-      <h2 id="hist-title" className="mb-2 text-base font-bold">
+    <section className="fc-float p-4 lg:p-5" aria-labelledby="hist-title">
+      <h2 id="hist-title" className="mb-2 flex items-center gap-2 text-base font-bold">
+        <SectionIcon icon={History} />
         Historial
       </h2>
       {purchases.length === 0 ? (

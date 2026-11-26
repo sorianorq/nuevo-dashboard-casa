@@ -44,7 +44,7 @@ export function MovementsList({
 
   if (rows.length === 0 && manual.length === 0) {
     return (
-      <p className="rounded-card border bg-card px-6 py-12 text-center text-muted-foreground">
+      <p className="fc-float px-6 py-12 text-center text-muted-foreground">
         No hay movimientos con estos filtros.
       </p>
     );
@@ -71,7 +71,7 @@ export function MovementsList({
         {[...byDay.entries()].map(([day, list]) => (
           <section key={day} aria-label={formatDayHeading(day)}>
             <h3 className="mb-1.5 px-1 text-xs font-bold text-muted-foreground">{formatDayHeading(day)}</h3>
-            <ul className="divide-y rounded-card border bg-card">
+            <ul className="divide-y fc-float">
               {list.map((it) =>
                 it.kind === "manual" ? (
                   <li key={`m-${it.row.payment.id}`}>
@@ -114,7 +114,7 @@ export function MovementsList({
       </div>
 
       {/* Ordenador */}
-      <div className="hidden overflow-hidden rounded-card border bg-card lg:block">
+      <div className="hidden overflow-hidden fc-float lg:block">
         <table className="w-full table-fixed text-sm">
           <thead className="border-b bg-surface text-xs text-muted-foreground">
             <tr>
@@ -298,7 +298,6 @@ function EditSheet({
         {tx && (
           <>
             <SheetHeader className="pt-6">
-              <p className="eyebrow">Movimiento</p>
               <SheetTitle className="pr-10 text-[18px] leading-snug font-extrabold break-words">{tx.description}</SheetTitle>
               <SheetDescription>
                 {formatDate(tx.date)} · {accountName}

@@ -15,7 +15,7 @@ export default function NoAccessPage() {
         <div className="mb-8 flex justify-center">
           <Logo />
         </div>
-        <div className="rounded-card border bg-card p-6 sm:p-8">
+        <div className="fc-float p-6 sm:p-8">
           <h1 className="text-[22px] font-extrabold tracking-tight">Sin acceso</h1>
           <p className="mt-2 text-muted-foreground">
             Tu usuario no tiene un rol asignado. Pide a Ricardo que lo revise.

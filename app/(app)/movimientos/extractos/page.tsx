@@ -16,7 +16,7 @@ type SP = PageProps<"/movimientos/extractos">["searchParams"];
 export default function ExtractosPage(props: PageProps<"/movimientos/extractos">) {
   return (
     <>
-      <PageHeader eyebrow="Movimientos" title="Extractos" />
+      <PageHeader title="Extractos" />
       <Suspense fallback={<PageSkeleton />}>
         <Content searchParams={props.searchParams} />
       </Suspense>

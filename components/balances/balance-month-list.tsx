@@ -120,7 +120,7 @@ export function BalanceMonthList({
   const result = valuesFor(sheet.result, view)[i];
 
   return (
-    <section data-drag-scope className="rounded-card border bg-card px-4 pb-2" aria-label={`Balance del mes, vista ${view}`}>
+    <section data-drag-scope className="fc-float px-4 pb-2" aria-label={`Balance del mes, vista ${view}`}>
       {sheet.blocks.map((block) => (
         <div key={block.section}>
           <h2 className="pt-4 pb-1.5 text-xs font-extrabold tracking-[0.1em] text-brand uppercase">
