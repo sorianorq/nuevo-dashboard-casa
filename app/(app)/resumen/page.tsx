@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BalanceSwitcher } from "@/components/layout/balance-switcher";
 import { PageHeader } from "@/components/layout/page-header";
-import { MonthNav } from "@/components/resumen/month-nav";
+import { MonthSelect } from "@/components/resumen/month-select";
 import { ResumenSkeleton } from "@/components/resumen/resumen-skeleton";
 import { ResumenView } from "@/components/resumen/resumen-view";
 import { MobileQuickActions, PurchaseEditor } from "@/components/supermercado/purchase-editor";
@@ -50,6 +50,8 @@ async function ResumenContent({ searchParams }: { searchParams: PageProps<"/resu
     href: `/contabilidad/presupuesto${qs ? `?${qs}` : ""}`,
   };
 
+  // Desplegable: desde enero de hace dos años (y siempre el mes abierto).
+  const minYm = { year: currentYm.year - 2, month: 1 };
   const params: Record<string, string> = {};
   if (ctx.tab === "personal") params.balance = "personal";
 
@@ -60,7 +62,7 @@ async function ResumenContent({ searchParams }: { searchParams: PageProps<"/resu
         role={ctx.role}
         person={ctx.person}
         tab={ctx.tab}
-        aside={<MonthNav ym={ym} maxYm={currentYm} pathname="/resumen" params={params} />}
+        aside={<MonthSelect ym={ym} minYm={minYm} maxYm={currentYm} pathname="/resumen" params={params} />}
       />
       <ResumenView summary={summary} owner={ctx.owner} budget={budget} />
       <MobileQuickActions />
