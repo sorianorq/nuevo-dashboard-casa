@@ -86,31 +86,74 @@ export async function listAccountsWithCounts(ctx: DataContext): Promise<AccountR
   return out;
 }
 
-/**
- * Quita una cuenta SIN movimientos (también su plantilla de columnas y su
- * enlace con el banco). Con el script 18, la base de datos también lo impide.
- */
-export async function deleteAccount(ctx: DataContext, accountId: string) {
-  const owners = ctx.allowedOwners.filter((o) => o === "casa" || o === ctx.person);
-  let ok = false;
-  for (const o of owners) if (await accountBelongsTo(ctx, accountId, o)) ok = true;
-  if (!ok) throw new Error("Cuenta no válida.");
+/** Cuenta por defecto a la que van los movimientos de una cuenta quitada (una por Balance). */
+export const RAW_ACCOUNT_NAME = "Cuenta Raw";
 
+async function ownerOf(ctx: DataContext, accountId: string): Promise<Owner | null> {
+  for (const o of ctx.allowedOwners.filter((x) => x === "casa" || x === ctx.person)) {
+    if (await accountBelongsTo(ctx, accountId, o)) return o;
+  }
+  return null;
+}
+
+/** La «Cuenta Raw» del Balance; se crea si no existe. */
+async function rawAccount(ctx: DataContext, owner: Owner): Promise<Account> {
+  const found = (await listAccounts(ctx, owner)).find((a) => a.name.trim().toLowerCase() === RAW_ACCOUNT_NAME.toLowerCase());
+  return found ?? createAccount(ctx, owner, { name: RAW_ACCOUNT_NAME, bank: "", accountType: "personal" });
+}
+
+/**
+ * Quita una cuenta. Sus movimientos NO se borran: pasan antes a `target`
+ * (otra cuenta del mismo Balance) o, con "raw", a la «Cuenta Raw» del
+ * Balance. Se quitan también su plantilla de columnas y su enlace con el
+ * banco. Con el script 18, la base de datos impide borrar una cuenta que aún
+ * tenga movimientos.
+ */
+export async function deleteAccount(ctx: DataContext, accountId: string, target: string | "raw" = "raw") {
+  const owner = await ownerOf(ctx, accountId);
+  if (!owner) throw new Error("Cuenta no válida.");
   const supabase = await createClient();
+
   const { count, error } = await supabase
     .from("transactions")
     .select("id", { count: "exact", head: true })
     .eq("account_id", accountId);
   if (error) throw new Error(`Error de base de datos: ${error.message}`);
-  if ((count ?? 0) > 0) throw new Error(`Esta cuenta tiene ${count} movimientos: no se puede quitar.`);
+  const movements = count ?? 0;
+
+  let movedTo: Account | null = null;
+  if (movements > 0) {
+    if (target === "raw") {
+      movedTo = await rawAccount(ctx, owner);
+    } else {
+      if (!(await accountBelongsTo(ctx, target, owner))) throw new Error("La cuenta de destino tiene que ser del mismo Balance.");
+      movedTo = (await listAccounts(ctx, owner)).find((a) => a.id === target) ?? null;
+    }
+    if (!movedTo) throw new Error("Cuenta de destino no válida.");
+    if (movedTo.id === accountId) throw new Error("Elige otra cuenta para sus movimientos.");
+
+    const { data: moved, error: e1 } = await supabase
+      .from("transactions")
+      .update({ account_id: movedTo.id })
+      .eq("account_id", accountId)
+      .select("id");
+    if (e1) {
+      if (e1.code === "23505") throw new Error("Algunos movimientos ya existen en la cuenta de destino. Elige otra cuenta.");
+      throw new Error(`No se pudieron pasar los movimientos: ${e1.message}`);
+    }
+    if ((moved?.length ?? 0) !== movements) {
+      throw new Error(`Solo se han podido pasar ${moved?.length ?? 0} de ${movements} movimientos a «${movedTo.name}». La cuenta no se ha quitado.`);
+    }
+  }
 
   const t = await supabase.from("import_templates").delete().eq("account_id", accountId);
   if (t.error) throw new Error(`No se pudo quitar la plantilla: ${t.error.message}`);
   const { data, error: e2 } = await supabase.from("accounts").delete().eq("id", accountId).select("id");
   if (e2) {
-    if (e2.code === "23503") throw new Error("La cuenta se usa en otra parte de la app y no se puede quitar.");
+    if (e2.code === "23503") throw new Error("La cuenta se usa en otra parte de la app y no se puede quitar (sus movimientos ya se han pasado).");
     throw new Error(`No se pudo quitar la cuenta: ${e2.message}`);
   }
   // Si la base de datos no deja borrarla, Supabase no borra nada y no da error.
   if (!data?.length) throw new Error("La base de datos no ha dejado quitar esta cuenta.");
+  return { moved: movements, movedTo: movedTo?.name ?? null };
 }

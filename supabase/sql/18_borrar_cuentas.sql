@@ -2,7 +2,9 @@
 -- Finanzas Casa · Script 18 · Quitar cuentas vacías
 -- =====================================================================
 -- Petición de Ricardo (26/11/2026): añadir y quitar cuentas a mano desde
--- la app (Movimientos › Extractos › Cuentas). Solo las cuentas vacías.
+-- la app (Movimientos › Extractos › Cuentas). Los movimientos de una
+-- cuenta quitada NO se borran: la app los pasa antes a otra cuenta del
+-- mismo Balance o a la «Cuenta Raw» (se crea sola), y luego la borra vacía.
 --
 -- Qué hace:
 --   · accounts: AÑADE una política RESTRICTIVA de borrado: ninguna cuenta
@@ -10,7 +12,7 @@
 --     app anterior) lo permita. Las restrictivas se suman a todas las demás.
 --   · import_templates: permite borrar las plantillas de columnas de las
 --     cuentas que el usuario ve (se quitan junto con la cuenta).
--- Qué NO hace: no borra nada por sí mismo ni quita otras políticas.
+-- Qué NO hace: no borra ni mueve nada por sí mismo ni quita otras políticas.
 --   Comprobado el 26/11/2026: la base de datos ya dejaba borrar cuentas
 --   (política anterior a esta app); este script lo limita a las vacías.
 --

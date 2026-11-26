@@ -592,6 +592,13 @@ y el rol admin. La importación sí está probada contra la base de datos real (
     admite `\n`) y, opcional, `ENABLE_BANKING_REDIRECT_URL`. JWT RS256 de 1 h firmado en
     `lib/banking/enable-banking.ts`; se envían IP y navegador del usuario (Psu-*) para no
     gastar el límite de 4 consultas diarias.
+- **Cuentas a mano (26/11/2026, petición de Ricardo):** `/movimientos/cuentas` (enlace desde
+  Extractos) para añadir y quitar cuentas de Casa y de la persona. Al quitar una cuenta con
+  movimientos, **no se borran**: pasan a otra cuenta del mismo Balance o, por defecto, a la
+  **«Cuenta Raw»** del Balance (se crea sola). Después se borra la cuenta, ya vacía, con su
+  plantilla y su enlace con el banco. Los Balances no cambian (van por concepto, no por cuenta).
+  Script 18: política RESTRICTIVA que impide borrar en la base de datos una cuenta con
+  movimientos (había una política anterior que lo permitía).
 
 ## 6. Cómo probar
 

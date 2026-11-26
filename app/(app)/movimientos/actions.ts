@@ -112,14 +112,17 @@ export async function newConcept(tab: string, name: string, section: ConceptSect
 
 // --- Cuentas ----------------------------------------------------------------
 
-/** Quita una cuenta sin movimientos (Casa o la persona). */
-export async function removeAccount(accountId: string) {
+/**
+ * Quita una cuenta (Casa o la persona). Sus movimientos pasan a `target`
+ * (otra cuenta del mismo Balance) o a la «Cuenta Raw» ("raw").
+ */
+export async function removeAccount(accountId: string, target: string = "raw") {
   return run(async () => {
-    if (!isId(accountId)) throw new Error("Cuenta no válida.");
+    if (!isId(accountId) || (target !== "raw" && !isId(target))) throw new Error("Cuenta no válida.");
     const ctx = await getDataContext();
-    await deleteAccount(ctx, accountId);
+    const res = await deleteAccount(ctx, accountId, target);
     refresh();
-    return {};
+    return res;
   });
 }
 

@@ -20,8 +20,8 @@ export function AccountsManager({ accounts, person, banks }: { accounts: Row[]; 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Las cuentas son a las que se cargan los movimientos (extractos o banco). Solo se puede quitar una cuenta sin
-        movimientos, para no perder datos de los Balances.
+        Las cuentas son a las que se cargan los movimientos (extractos o banco). Al quitar una cuenta, sus movimientos no
+        se borran: pasan a otra cuenta del mismo Balance o a la «Cuenta Raw», y los Balances no cambian.
       </p>
       {owners.map((owner) => (
         <OwnerAccounts key={owner} owner={owner} rows={accounts.filter((a) => a.owner === owner)} banks={banks} />
@@ -32,15 +32,22 @@ export function AccountsManager({ accounts, person, banks }: { accounts: Row[]; 
 
 function OwnerAccounts({ owner, rows, banks }: { owner: Owner; rows: Row[]; banks: Record<string, string> }) {
   const [adding, setAdding] = useState(false);
+  // Cuenta con movimientos que se está quitando (se elige adónde van).
+  const [removing, setRemoving] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const id = `acc-${owner}`;
 
-  const remove = (r: Row) => {
-    if (!window.confirm(`¿Quitar la cuenta «${r.name}»?${banks[r.id] ? " También se quitará su conexión con el banco." : ""}`)) return;
+  const remove = (r: Row, target = "raw") => {
+    if (r.movements === 0 && !window.confirm(`¿Quitar la cuenta «${r.name}»?${banks[r.id] ? " También se quitará su conexión con el banco." : ""}`)) return;
     start(async () => {
-      const res = await removeAccount(r.id);
+      const res = await removeAccount(r.id, target);
       if (!res.ok) return void toast.error(res.error);
-      toast.success(`Cuenta «${r.name}» quitada.`);
+      setRemoving(null);
+      toast.success(
+        res.moved > 0
+          ? `Cuenta «${r.name}» quitada. Sus ${res.moved.toLocaleString("es-ES")} movimientos están ahora en «${res.movedTo}».`
+          : `Cuenta «${r.name}» quitada.`,
+      );
     });
   };
 
@@ -63,7 +70,8 @@ function OwnerAccounts({ owner, rows, banks }: { owner: Owner; rows: Row[]; bank
       ) : (
         <ul className="divide-y">
           {rows.map((r) => (
-            <li key={r.id} className="flex min-h-14 items-center gap-3 py-2">
+            <li key={r.id} className="py-2">
+              <div className="flex min-h-10 items-center gap-3">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{r.name}</span>
                 <span className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
@@ -77,20 +85,86 @@ function OwnerAccounts({ owner, rows, banks }: { owner: Owner; rows: Row[]; bank
                   )}
                 </span>
               </span>
-              {r.movements === 0 ? (
-                <Button variant="ghost" size="sm" className="h-9 rounded-lg text-warning" disabled={pending} onClick={() => remove(r)}>
+              {removing !== r.id && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 rounded-lg text-warning"
+                  disabled={pending}
+                  onClick={() => (r.movements === 0 ? remove(r) : setRemoving(r.id))}
+                >
                   <Trash2 aria-hidden /> Quitar
                 </Button>
-              ) : (
-                <span className="text-xs text-muted-foreground" title="Tiene movimientos: no se puede quitar">
-                  Con movimientos
-                </span>
+              )}
+              </div>
+              {removing === r.id && (
+                <MoveMovements
+                  row={r}
+                  others={rows.filter((o) => o.id !== r.id)}
+                  bankLinked={Boolean(banks[r.id])}
+                  pending={pending}
+                  onCancel={() => setRemoving(null)}
+                  onConfirm={(target) => remove(r, target)}
+                />
               )}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+const isRaw = (name: string) => name.trim().toLowerCase() === "cuenta raw";
+
+/** Al quitar una cuenta con movimientos: a qué cuenta del mismo Balance pasan. */
+function MoveMovements({
+  row,
+  others,
+  bankLinked,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  row: Row;
+  others: Row[];
+  bankLinked: boolean;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: (target: string) => void;
+}) {
+  const rawExisting = others.find((o) => isRaw(o.name));
+  // La «Cuenta Raw» no puede mandar sus movimientos a sí misma.
+  const offerRaw = !isRaw(row.name);
+  const [target, setTarget] = useState(offerRaw ? "raw" : (others[0]?.id ?? ""));
+  const n = row.movements.toLocaleString("es-ES");
+  return (
+    <div className="mt-2 space-y-3 rounded-2xl border bg-surface p-3">
+      <p className="text-sm">
+        «{row.name}» tiene <span className="font-bold tabular-nums">{n}</span> {row.movements === 1 ? "movimiento" : "movimientos"}. No se
+        borran: ¿a qué cuenta pasan?
+      </p>
+      <select aria-label={`Cuenta a la que pasan los movimientos de ${row.name}`} className={selectClass} value={target} onChange={(e) => setTarget(e.target.value)}>
+        {offerRaw && <option value="raw">Cuenta Raw{rawExisting ? "" : " (se crea ahora)"}</option>}
+        {others
+          .filter((o) => !(offerRaw && isRaw(o.name)))
+          .map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+              {o.bank ? ` · ${o.bank}` : ""}
+            </option>
+          ))}
+      </select>
+      {bankLinked && <p className="text-xs text-muted-foreground">También se quitará su conexión con el banco.</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          Cancelar
+        </Button>
+        <Button type="button" variant="destructive" disabled={pending || !target} onClick={() => onConfirm(target)}>
+          {pending ? "Pasando movimientos…" : `Pasar ${n} y quitar la cuenta`}
+        </Button>
+      </div>
+    </div>
   );
 }
 

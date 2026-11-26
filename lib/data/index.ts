@@ -30,6 +30,7 @@ export {
   createAccount,
   listAccountsWithCounts,
   deleteAccount,
+  RAW_ACCOUNT_NAME,
   type Account,
   type AccountType,
   type AccountRow,
