@@ -597,8 +597,11 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   movimientos, **no se borran**: pasan a otra cuenta del mismo Balance o, por defecto, a la
   **«Cuenta Raw»** del Balance (se crea sola). Después se borra la cuenta, ya vacía, con su
   plantilla y su enlace con el banco. Los Balances no cambian (van por concepto, no por cuenta).
-  Script 18: política RESTRICTIVA que impide borrar en la base de datos una cuenta con
-  movimientos (había una política anterior que lo permitía).
+  Script 19 (sustituye al 18): quita `household_accounts` y `household_transactions`
+  (políticas anteriores con `USING (true)` que dejaban a cualquier usuario leer y escribir
+  cuentas y movimientos de cualquier Balance y anulaban el script 04), permite quitar cuentas
+  de tus Balances y añade una política RESTRICTIVA: nunca se borra una cuenta con
+  movimientos (borrar una cuenta borra sus movimientos en cascada).
 
 ## 6. Cómo probar
 

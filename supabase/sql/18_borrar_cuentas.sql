@@ -1,5 +1,7 @@
 -- =====================================================================
 -- Finanzas Casa · Script 18 · Quitar cuentas vacías
+-- >>> SUSTITUIDO POR EL SCRIPT 19: no hace falta ejecutarlo. Aquí no
+-- >>> bastaba, porque household_accounts (USING true) lo anulaba todo.
 -- =====================================================================
 -- Petición de Ricardo (26/11/2026): añadir y quitar cuentas a mano desde
 -- la app (Movimientos › Extractos › Cuentas). Los movimientos de una
