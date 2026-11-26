@@ -574,6 +574,24 @@ y el rol admin. La importación sí está probada contra la base de datos real (
   - máximo 3.000 filas por archivo.
 - Comprobado con el extracto real de Sabadell (formato .xls binario): las 219 filas dan la
   misma clave de duplicado que la lectura de producción.
+- **Bancos con Enable Banking (26/11/2026, petición de Ricardo):** solo **movimientos** y solo
+  **con botón** (nada automático, sin saldos).
+  - `/movimientos/bancos`: «Ir al banco» → permiso en la web del banco (hasta 180 días) →
+    vuelta a `/api/banco/callback` → cada cuenta del banco se asigna a una cuenta de la app.
+  - En Extractos, una cuenta conectada muestra «Traer del banco»: trae los movimientos
+    contabilizados (BOOK, en euros) **desde el último día que ya tiene la cuenta, incluido**
+    (la primera vez, 89 días) y los pasa por la misma vista previa que un archivo
+    (duplicados, concepto sugerido, choques con lo escrito a mano).
+  - El banco y el extracto describen distinto: el día de corte, un movimiento con el mismo
+    importe que uno ya guardado ese día se da por duplicado. No mezclar archivo y banco en
+    fechas que se solapen.
+  - Tablas `bank_sessions` y `bank_links` (script 17), RLS por `user_id = auth.uid()`:
+    quien conecta un banco es quien trae sus movimientos. Del IBAN solo se guardan los
+    últimos 4 dígitos.
+  - Claves solo en el servidor: `ENABLE_BANKING_APP_ID`, `ENABLE_BANKING_PRIVATE_KEY` (el .pem;
+    admite `\n`) y, opcional, `ENABLE_BANKING_REDIRECT_URL`. JWT RS256 de 1 h firmado en
+    `lib/banking/enable-banking.ts`; se envían IP y navegador del usuario (Psu-*) para no
+    gastar el límite de 4 consultas diarias.
 
 ## 6. Cómo probar
 

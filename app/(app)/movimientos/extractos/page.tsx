@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Landmark } from "lucide-react";
 import { BalanceSwitcher } from "@/components/layout/balance-switcher";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSkeleton } from "@/components/layout/page-skeleton";
-import { ImportWizard, type WizardBalance } from "@/components/movimientos/import-wizard";
-import { getDataContext, listAccounts, listConcepts } from "@/lib/data";
+import { ImportWizard, type WizardBalance, type WizardBankLinks } from "@/components/movimientos/import-wizard";
+import { getDataContext, listAccounts, listBankConnections, listConcepts } from "@/lib/data";
+import { bankConfigured } from "@/lib/banking/enable-banking";
 import type { BalanceTab, Owner } from "@/lib/balance";
 
 export const metadata: Metadata = { title: "Extractos" };
@@ -40,6 +41,21 @@ async function Content({ searchParams }: { searchParams: SP }) {
     }),
   );
 
+  // Cuentas conectadas con el banco por este usuario (vacío si aún no se ha configurado).
+  const bankLinks: WizardBankLinks = {};
+  const bankEnabled = bankConfigured();
+  if (bankEnabled) {
+    try {
+      const { sessions, links } = await listBankConnections(ctx);
+      for (const l of links) {
+        const s = sessions.find((x) => x.id === l.sessionId);
+        if (s) bankLinks[l.accountId] = { aspsp: s.aspsp, active: !s.expired, lastSyncedAt: l.lastSyncedAt };
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   return (
     <>
       {ctx.role === "admin" && (
@@ -52,8 +68,17 @@ async function Content({ searchParams }: { searchParams: SP }) {
         <ArrowLeft className="size-4" aria-hidden />
         Movimientos
       </Link>
+      {bankEnabled && (
+        <Link
+          href="/movimientos/bancos"
+          className="mb-3 ml-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+        >
+          <Landmark className="size-4" aria-hidden />
+          Bancos conectados
+        </Link>
+      )}
       <div className="mx-auto max-w-5xl">
-        <ImportWizard key={ctx.person} balances={balances} initialTab={ctx.tab} />
+        <ImportWizard key={ctx.person} balances={balances} initialTab={ctx.tab} bankLinks={bankLinks} />
       </div>
     </>
   );

@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { headers } from "next/headers";
 import {
   applyConceptToMany,
   conceptHistory,
@@ -17,7 +18,11 @@ import {
   setTransactionFlow,
   manualConflicts,
   setManualAmount,
+  bankLinkFor,
+  lastTransactionDay,
+  markSynced,
 } from "@/lib/data";
+import { BankError, fetchTransactions, toParsedRows } from "@/lib/banking/enable-banking";
 import { parseBalanceTab } from "@/lib/balance";
 import { importHash } from "@/lib/import/hash";
 import { duplicateKey, type ImportTemplate, type ParsedRow } from "@/lib/import/normalize";
@@ -207,6 +212,63 @@ export async function previewImport(tab: string, accountId: string, rows: Parsed
   });
 }
 
+/** Días hacia atrás la primera vez que se trae una cuenta del banco (PSD2 suele dar 90). */
+const FIRST_SYNC_DAYS = 89;
+
+/** IP y navegador del usuario: el banco los pide cuando la consulta la hace alguien presente. */
+async function psuHeaders() {
+  const h = await headers();
+  return { ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || null, userAgent: h.get("user-agent") };
+}
+
+/**
+ * Paso 2 desde el banco: trae los movimientos contabilizados desde el último
+ * día que ya tiene la cuenta (incluido) y los pasa por la misma comprobación
+ * que un extracto. Ese primer día, un movimiento con el mismo importe que uno
+ * ya guardado se da por duplicado (el banco y el extracto describen distinto).
+ */
+export async function previewFromBank(tab: string, accountId: string) {
+  return run(async () => {
+    if (!isId(accountId)) throw new Error("Cuenta no válida.");
+    const ctx = await ctxFor(tab);
+    const link = await bankLinkFor(ctx, accountId);
+    if (!link) throw new Error("Esta cuenta no está conectada con el banco.");
+    if (!link.active) throw new Error("El permiso del banco ha caducado. Vuelve a conectarlo en «Bancos».");
+
+    const last = await lastTransactionDay(ctx, accountId);
+    const from = last?.date ?? new Date(Date.now() - FIRST_SYNC_DAYS * 86400_000).toISOString().slice(0, 10);
+    let rows: ParsedRow[];
+    try {
+      rows = toParsedRows(await fetchTransactions(link.ebAccountUid, from, await psuHeaders()));
+    } catch (e) {
+      if (e instanceof BankError) throw new Error(e.message);
+      throw e;
+    }
+    if (rows.length > MAX_ROWS) rows = rows.slice(-MAX_ROWS);
+
+    const [existing, history] = await Promise.all([existingImportKeys(ctx, accountId), conceptHistory(ctx)]);
+    const suggest = buildSuggester(history);
+    const status = classify(accountId, rows, existing);
+    // Mismo día que el último guardado: cada importe ya guardado «gasta» un movimiento del banco.
+    const sameDay = new Map<number, number>();
+    for (const a of last?.amounts ?? []) sameDay.set(a, (sameDay.get(a) ?? 0) + 1);
+
+    const preview: PreviewRow[] = rows.map((r, i) => {
+      let duplicate = status[i].duplicate;
+      if (!duplicate && last && r.date === last.date) {
+        const left = sameDay.get(r.amount) ?? 0;
+        if (left > 0) {
+          sameDay.set(r.amount, left - 1);
+          duplicate = "db";
+        }
+      }
+      const s = duplicate ? null : suggest(r.description);
+      return { ...r, duplicate, suggestion: s ? { conceptId: s.conceptId, source: s.source } : null };
+    });
+    return { rows: preview, from, aspsp: link.aspsp };
+  });
+}
+
 /** Paso 3: guarda los nuevos (vuelve a comprobar duplicados) y la plantilla. */
 /** Mes (año, mes) de una fecha «aaaa-mm-dd». */
 const cellOf = (conceptId: string, date: string) => ({ conceptId, year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) });
@@ -229,10 +291,12 @@ export async function checkImportConflicts(tab: string, rows: { date: string; co
 export async function commitImport(
   tab: string,
   accountId: string,
-  template: ImportTemplate,
+  template: ImportTemplate | null,
   rows: (ParsedRow & { conceptId: string | null })[],
   /** Celdas en las que se usa el extracto: se quita lo escrito a mano. */
   replaceManual: { conceptId: string; year: number; month: number }[] = [],
+  /** «bank»: los movimientos vienen del banco (se apunta la fecha de la sincronización). */
+  source: "file" | "bank" = "file",
 ) {
   return run(async () => {
     if (!isId(accountId)) throw new Error("Cuenta no válida.");
@@ -246,6 +310,7 @@ export async function commitImport(
     const status = classify(accountId, parsed, await existingImportKeys(ctx, accountId));
     const fresh = parsed
       .map((r, i) => ({ ...r, importHash: status[i].hash, conceptId: conceptIds[i], duplicate: status[i].duplicate }))
+      // Del banco ya se descartaron en la vista previa los del día de corte; aquí, solo los exactos.
       .filter((r) => !r.duplicate);
 
     if (
@@ -269,6 +334,7 @@ export async function commitImport(
         mapping: { date: letter(m.date), description: letter(m.description), amount: letter(m.amount), balance: letter(m.balance) },
       });
     }
+    if (source === "bank") await markSynced(accountId);
     refresh();
     return {
       inserted,

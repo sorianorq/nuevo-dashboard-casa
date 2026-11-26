@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
-import { CheckCircle2, FileSpreadsheet, Plus, Sparkles, Upload } from "lucide-react";
+import { CheckCircle2, FileSpreadsheet, Landmark, Plus, Sparkles, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
   checkImportConflicts,
   commitImport,
   loadTemplate,
+  previewFromBank,
   previewImport,
   type PreviewRow,
 } from "@/app/(app)/movimientos/actions";
@@ -48,8 +49,22 @@ type Result = { inserted: number; duplicates: number; withoutConcept: number };
 
 const selectClass = "h-11 w-full min-w-0 rounded-xl border bg-surface px-3 text-sm hover:bg-accent";
 
-export function ImportWizard({ balances, initialTab }: { balances: WizardBalance[]; initialTab: BalanceTab }) {
+/** Cuentas de la app conectadas con el banco por este usuario. */
+export type WizardBankLinks = Record<string, { aspsp: string; active: boolean; lastSyncedAt: string | null }>;
+
+export function ImportWizard({
+  balances,
+  initialTab,
+  bankLinks = {},
+}: {
+  balances: WizardBalance[];
+  initialTab: BalanceTab;
+  bankLinks?: WizardBankLinks;
+}) {
   const [step, setStep] = useState<Step>(1);
+  // De dónde vienen los movimientos del paso 2: un archivo o el banco.
+  const [source, setSource] = useState<"file" | "bank">("file");
+  const [bankFrom, setBankFrom] = useState<string | null>(null);
   // Choques con importes escritos a mano (null = sin comprobar) y la elección de cada uno.
   const [conflicts, setConflicts] = useState<Conflict[] | null>(null);
   const [useStatement, setUseStatement] = useState<Record<string, boolean>>({});
@@ -73,6 +88,7 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
   const balance = balances.find((b) => b.tab === tab)!;
   const accounts = accountsByTab[tab];
   const account = accounts.find((a) => a.id === accountId);
+  const bankLink = accountId ? bankLinks[accountId] : undefined;
 
   const parsed = useMemo(
     () => (matrix && template ? extractRows(matrix, template, legacyMatrix) : { valid: [], invalid: [] }),
@@ -159,6 +175,21 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
       // Tras un await, las actualizaciones deben volver a marcarse como transición;
       // si no, el paso 2 se pinta con `pending` aún activo («Importando…»).
       start(() => {
+        setSource("file");
+        setPreview(res.rows);
+        setChoices(Object.fromEntries(res.rows.map((r) => [r.line, r.suggestion?.conceptId ?? null])));
+        setStep(2);
+      });
+    });
+
+  /** Trae del banco los movimientos desde el último día guardado y pasa al paso 2. */
+  const goBank = () =>
+    start(async () => {
+      const res = await previewFromBank(tab, accountId);
+      if (!res.ok) return void toast.error(res.error);
+      start(() => {
+        setSource("bank");
+        setBankFrom(res.from);
         setPreview(res.rows);
         setChoices(Object.fromEntries(res.rows.map((r) => [r.line, r.suggestion?.conceptId ?? null])));
         setStep(2);
@@ -173,7 +204,7 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
 
   const doImport = () =>
     start(async () => {
-      if (!template) return;
+      if (source === "file" && !template) return;
       // 1.º Comprobar si algún movimiento cae donde ya hay un importe escrito a mano.
       if (conflicts === null) {
         const check = await checkImportConflicts(
@@ -193,7 +224,7 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
       const res = await commitImport(
         tab,
         accountId,
-        templateWithLetters(template, columns) ?? template,
+        source === "bank" || !template ? null : (templateWithLetters(template, columns) ?? template),
         fresh.map((r) => ({
           line: r.line,
           date: r.date,
@@ -204,6 +235,7 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
           conceptId: choices[r.line] ?? null,
         })),
         replace.map((c) => ({ conceptId: c.conceptId, year: c.year, month: c.month })),
+        source,
       );
       if (!res.ok) return void toast.error(res.error);
       start(() => {
@@ -283,7 +315,37 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
             </div>
           </Card>
 
-          <Card title="Archivo">
+          {bankLink && (
+            <Card title="Desde el banco">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="flex items-start gap-2 text-sm">
+                  <Landmark className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+                  <span>
+                    Conectada con <span className="font-bold">{bankLink.aspsp}</span>.{" "}
+                    {bankLink.active
+                      ? "Trae los movimientos nuevos desde el último día que ya tiene la cuenta."
+                      : "El permiso del banco ha caducado: renuévalo en Bancos."}
+                    {bankLink.active && bankLink.lastSyncedAt && (
+                      <span className="block text-xs text-muted-foreground">
+                        Última vez: {formatDate(bankLink.lastSyncedAt.slice(0, 10))}
+                      </span>
+                    )}
+                  </span>
+                </p>
+                {bankLink.active ? (
+                  <Button size="lg" className="shrink-0" disabled={pending} onClick={goBank}>
+                    {pending ? "Consultando el banco…" : "Traer del banco"}
+                  </Button>
+                ) : (
+                  <Link href="/movimientos/bancos" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "shrink-0")}>
+                    Ir a Bancos
+                  </Link>
+                )}
+              </div>
+            </Card>
+          )}
+
+          <Card title={bankLink ? "O desde un archivo" : "Archivo"}>
             <label
               className={cn(
                 "flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed bg-surface px-4 py-6 text-center transition-colors hover:bg-accent",
@@ -369,7 +431,9 @@ export function ImportWizard({ balances, initialTab }: { balances: WizardBalance
               />
             ) : (
               <p className="fc-float px-6 py-10 text-center text-muted-foreground">
-                Todos los movimientos del archivo ya estaban importados.
+                {source === "bank"
+                  ? `No hay movimientos nuevos en el banco desde el ${bankFrom ? formatDate(bankFrom) : "último día guardado"}.`
+                  : "Todos los movimientos del archivo ya estaban importados."}
               </p>
             )}
             {dups.length > 0 && (

@@ -83,3 +83,18 @@ export {
 export { savePayment, deletePayment, markTransferred, createPaymentMethod, type PaymentInput } from "./pagos-edit";
 export { getBudget, setBudgets, createBudgetConcept, type BudgetData, type NewBudgetConcept } from "./budget";
 export { getFlow, saveFlow, type FlowData } from "./flow";
+export {
+  listBankConnections,
+  createPendingBankSession,
+  findPendingBankSession,
+  activateBankSession,
+  dropBankSession,
+  bankSessionExternalId,
+  setBankLink,
+  bankLinkFor,
+  markSynced,
+  lastTransactionDay,
+  linkableAccounts,
+  type BankSession,
+  type BankLink,
+} from "./bank";
