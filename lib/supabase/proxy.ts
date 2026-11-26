@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/privacidad", "/condiciones"];
 
 /**
  * Refresca la sesión de Supabase en cada petición y redirige a /login si no
