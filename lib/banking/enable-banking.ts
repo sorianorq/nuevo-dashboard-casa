@@ -70,7 +70,7 @@ async function call<T>(method: "GET" | "POST" | "DELETE", path: string, body?: u
     (res.status === 401 && path.startsWith("/accounts") && !/jwt|token/i.test(detail));
   if (expired) throw new BankError("El permiso del banco ha caducado o se ha retirado. Vuelve a conectar el banco.", true);
   if (res.status === 429) throw new BankError("El banco limita las consultas: prueba más tarde.");
-  throw new BankError(`El banco no ha respondido bien (${res.status}).`);
+  throw new BankError(`Enable Banking ha respondido con un error (${res.status}${detail ? `: ${detail.slice(0, 160)}` : ""}).`);
 }
 
 // --- Bancos -------------------------------------------------------------------

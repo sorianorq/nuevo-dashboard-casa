@@ -59,7 +59,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/movimientos
     banks = await listBanks("ES");
   } catch (e) {
     console.error(e);
-    banksError = "No se ha podido cargar la lista de bancos. Revisa la configuración de Enable Banking.";
+    banksError = `No se ha podido cargar la lista de bancos. ${e instanceof Error ? e.message : ""}`;
   }
 
   const error = typeof sp.error === "string" ? (MESSAGES[sp.error] ?? MESSAGES.banco) : null;
